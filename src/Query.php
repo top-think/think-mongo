@@ -985,7 +985,7 @@ class Query
         if (is_array($field)) {
             $this->options['sort'] = $field;
         } else {
-            $this->options['sort'][$field] = $order;
+            $this->options['sort'][$field] = 'asc' == strtolower($order) ? 1 : -1;
         }
         return $this;
     }
