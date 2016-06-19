@@ -449,5 +449,16 @@ class Builder
     {
         $command = new Command(['listCollections' => 1]);
         return $command;
-    }    
+    }
+
+    /**
+     * 查询数据表的状态信息
+     * @access public
+     * @return Command
+     */
+    public function collStats($options)
+    {
+        $command = new Command(['collStats' => $options['table']]);
+        return $command;
+    }      
 }

@@ -23,8 +23,8 @@ use think\Cache;
 use think\Collection;
 use think\Config;
 use think\Db;
-use think\mongo\Builder as MongoBuilder;
-use think\mongo\Connection as MongoConnection;
+use think\mongo\Builder;
+use think\mongo\Connection;
 use think\Exception;
 use think\exception\DbException;
 use think\Loader;
@@ -54,12 +54,12 @@ class Query
      * @param Connection $connection 数据库对象实例
      * @param string $model 模型名
      */
-    public function __construct(MongoConnection $connection = null, $model = '')
+    public function __construct(Connection $connection = null, $model = '')
     {
         $this->connection = $connection ?: Db::connect([], true);
         $this->prefix     = $this->connection->getConfig('prefix');
         $this->model      = $model;
-        $this->builder    = new MongoBuilder($this->connection, $this);
+        $this->builder    = new Builder($this->connection, $this);
     }
 
     /**
@@ -190,8 +190,8 @@ class Query
     /**
      * 执行指令 返回数据集
      * @access public
-     * @param string $dbName
-     * @param Command  $command sql指令
+     * @param Command           $command 指令
+     * @param string            $dbName     
      * @param ReadPreference    $readPreference readPreference
      * @param bool|string       $class 指定返回的数据集对象
      * @param string|array      $typeMap 指定返回的typeMap     
@@ -341,6 +341,20 @@ class Query
     }
 
     /**
+     * 执行Builder封装的command
+     * @access public
+     * @param string $field 字段名
+     * @param mixed  $extra 扩展参数
+     * @return array
+     */
+    public function cmd($command, $extra = null, $db = null)
+    {
+        $options = $this->parseExpress();
+        $command = $this->builder->$command($options, $extra);
+        return $this->command($command);
+    }
+
+    /**
      * 指定distinct查询
      * @access public
      * @param string $field 字段名
@@ -348,10 +362,24 @@ class Query
      */
     public function distinct($field)
     {
-        $options = $this->parseExpress();
-        $command = $this->builder->distinct($options, $field);
-        $result  = $this->command($command);
+        $result  = $this->cmd('distinct', $field);
         return $result[0]['values'];
+    }
+
+    /**
+     * 获取数据库的所有collection
+     * @access public
+     * @param string  $db 数据库名称 留空为当前数据库
+     * @throws Exception
+     */
+    public function listCollections($db = '')
+    {
+        $cursor  = $this->cmd('listCollections', null, $db);
+        $result  = [];
+        foreach($cursor as $collection){
+            $result[] = $collection['name'];
+        }
+        return $result;
     }
 
     /**
@@ -361,11 +389,8 @@ class Query
      */
     public function count()
     {
-        // 分析查询表达式
-        $options = $this->parseExpress();        
-        $command = $this->builder->count($options);
-        $result  = current($this->fetchCursor(true)->command($command, '', null, false, ['root' => 'array']));
-        return $result['n'];
+        $result  = $this->cmd('count');
+        return $result[0]['n'];
     }
 
     /**
@@ -1425,23 +1450,6 @@ class Query
     }
 
     /**
-     * 设置/获取当前操作的database
-     * @access public
-     * @param string  $db db
-     * @throws Exception
-     */
-    public function getCollections($db = null)
-    {
-        $command = new Command(['listCollections' => 1]);
-        $cursor  = $this->command($command, $db);
-        $result  = [];
-        foreach($cursor as $collection){
-            $result[] = $collection['name'];
-        }
-        return $result;
-    }
-
-    /**
      * 获取数据表信息
      * @access public
      * @param string $tableName 数据表名 留空自动获取
@@ -1509,19 +1517,17 @@ class Query
         if(isset($options['comment'])) {
             $modifiers['$comment'] = $options['comment'];
         }
+
         if (isset($options['maxTimeMS'])) {
             $modifiers['$maxTimeMS'] = $options['maxTimeMS'];
         }
+
         if (!empty($modifiers)) {
             $options['modifiers'] = $modifiers;
         }
 
         if (!isset($options['projection']) || '*' == $options['projection']) {
             $options['projection'] = [];
-        }
-
-        if (!isset($options['strict'])) {
-            $options['strict'] = $this->getConfig('fields_strict');
         }
 
         if (!isset($options['typeMap'])) {
@@ -1531,12 +1537,6 @@ class Query
         foreach (['master', 'fetch_class'] as $name) {
             if (!isset($options[$name])) {
                 $options[$name] = false;
-            }
-        }
-
-        foreach (['limit', 'order'] as $name) {
-            if (!isset($options[$name])) {
-                $options[$name] = '';
             }
         }
 
