@@ -7,7 +7,6 @@
             "email": "liu21st@gmail.com"
         }
     ],
-    "minimum-stability": "dev",
     "require": {},
     "autoload": {
         "psr-4": {
