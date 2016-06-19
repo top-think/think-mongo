@@ -318,6 +318,7 @@ class Builder
         if ($insertId = $bulk->insert($data)) {
             $this->insertId = $insertId;
         }
+        $this->log('insert', $data, $options);    
         return $bulk;
     }
 
@@ -338,6 +339,7 @@ class Builder
                 $this->insertId[] = $insertId;
             }
         }
+        $this->log('insert', $dataSet, $options); 
         return $bulk;
     }
 
@@ -360,6 +362,7 @@ class Builder
         }
         $bulk = new BulkWrite;
         $bulk->update($where, $data, $updateOptions);
+        $this->log('update', $data, $where);
         return $bulk;
     }
 
@@ -380,6 +383,7 @@ class Builder
             $deleteOptions = ['limit' => 0];
         }
         $bulk->delete($where, $deleteOptions);
+        $this->log('remove', $where, $deleteOptions);  
         return $bulk;
     }
 
@@ -393,6 +397,7 @@ class Builder
     {
         $where = $this->parseWhere($options['where']);
         $query = new MongoQuery($where, $options);
+        $this->log('find', $where, $options);          
         return $query;
     }
 
@@ -412,6 +417,7 @@ class Builder
             }
         }
         $command = new Command($cmd);
+        $this->log('cmd', 'count', $cmd);          
         return $command;
     }
 
@@ -437,6 +443,7 @@ class Builder
             $cmd['maxTimeMS'] = $options['maxTimeMS'];
         }
         $command = new Command($cmd);
+        $this->log('cmd', 'distinct', $cmd);          
         return $command;
     }
 
@@ -447,7 +454,9 @@ class Builder
      */
     public function listcollections()
     {
-        $command = new Command(['listCollections' => 1]);
+        $cmd     = ['listCollections' => 1];
+        $command = new Command($cmd);
+        $this->log('cmd', 'listCollections', $cmd);        
         return $command;
     }
 
@@ -458,7 +467,16 @@ class Builder
      */
     public function collStats($options)
     {
-        $command = new Command(['collStats' => $options['table']]);
+        $cmd     = ['collStats' => $options['table']];
+        $command = new Command($cmd);
+        $this->log('cmd', 'collStats', $cmd);
         return $command;
-    }      
+    }
+
+    protected function log($type, $data, $options = [])
+    {
+        if ($this->connection->getConfig('debug')) {
+            $this->connection->log($type, $data, $options);
+        }        
+    }  
 }

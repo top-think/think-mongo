@@ -1124,7 +1124,6 @@ class Query
         }        
         // 分析查询表达式
         $options = $this->parseExpress();
-
         try {
             // 生成bulk对象
             $bulk         = $this->builder->insert($data, $options);
@@ -1532,6 +1531,10 @@ class Query
 
         if (!isset($options['typeMap'])) {
             $options['typeMap'] = $this->getConfig('type_map');
+        }
+
+        if (!isset($options['limit'])) {
+            $options['limit']  = 0;
         }
 
         foreach (['master', 'fetch_class'] as $name) {

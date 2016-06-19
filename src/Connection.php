@@ -57,6 +57,8 @@ class Connection
     protected $error = '';
     // 查询对象
     protected $query = [];
+    // 查询参数
+    protected $options = [];
     // 数据库连接参数配置
     protected $config = [
         // 数据库类型
@@ -244,10 +246,14 @@ class Connection
         $this->initConnect(false);
         Db::$queryTimes++;
         try {
-            $this->debug(true);
             if (false === strpos($namespace, '.')) {
                 $namespace = $this->dbName . '.' . $namespace;
-            }
+            }            
+            if (!empty($this->queryStr)) {
+                // 记录执行指令
+                $this->queryStr = $namespace . '.' . $this->queryStr;
+            }            
+            $this->debug(true);
             $this->cursor = $this->mongo->executeQuery($namespace, $query, $readPreference);
             $this->debug(false);
             return $this->getResult($class, $typeMap);
@@ -273,7 +279,11 @@ class Connection
         Db::$queryTimes++;
         try {
             $this->debug(true);
-            $this->cursor = $this->mongo->executeCommand($dbName ?: $this->dbName, $command, $readPreference);
+            $dbName = $dbName ?: $this->dbName;
+            if (!empty($this->queryStr)) {
+                $this->queryStr = $dbName . '.' . $this->queryStr;
+            }            
+            $this->cursor = $this->mongo->executeCommand($dbName, $command, $readPreference);
             $this->debug(false);
             return $this->getResult($class, $typeMap);
         } catch (MongoException $e) {
@@ -332,6 +342,10 @@ class Connection
             if (false === strpos($namespace, '.')) {
                 $namespace = $this->dbName . '.' . $namespace;
             }
+            if (!empty($this->queryStr)) {
+                // 记录执行指令
+                $this->queryStr = $namespace . '.' . $this->queryStr;
+            }             
             $this->debug(true);
             $writeResult    = $this->mongo->executeBulkWrite($namespace, $bulk, $writeConcern);
             $this->debug(false);
@@ -339,6 +353,65 @@ class Connection
             return $writeResult;
         } catch (MongoException $e) {
             throw new Exception($e->getMessage());
+        }
+    }
+
+    /**
+     * 数据库日志记录
+     * @access public
+     * @param string $type 类型
+     * @param mixed  $data 数据
+     * @param array  $options 参数
+     * @return void
+     */
+    public function log($type, $data, $options = [])
+    {
+        switch(strtolower($type)){
+            case 'find':
+            case 'insert':
+            case 'remove':
+                $this->queryStr = $type . '(' . ($data ? json_encode($data) : '') . ');';
+                break;
+            case 'update':
+                $this->queryStr = $type . '(' . json_encode($options) . ','. json_encode($data) . ');';
+                break;
+            case 'cmd':
+                $this->queryStr = $data . '(' . json_encode($options) . ');';
+                break;
+        }        
+        $this->options  = $options;
+    }
+
+    /**
+     * 监听SQL执行
+     * @access public
+     * @param callable $callback 回调方法
+     * @return void
+     */
+    public function listen($callback)
+    {
+        self::$event[] = $callback;
+    }
+
+    /**
+     * 触发SQL事件
+     * @access protected
+     * @param string $sql 语句
+     * @param float $runtime 运行时间
+     * @param array $options 参数
+     * @return bool
+     */
+    protected function trigger($sql, $runtime, $options = [])
+    {
+        if (!empty(self::$event)) {
+            foreach (self::$event as $callback) {
+                if (is_callable($callback)) {
+                    call_user_func_array($callback, [$sql, $runtime, $options]);
+                }
+            }
+        } else {
+            // 未注册监听则记录到日志中
+            Log::record('[ Mongo ] ' . $this->queryStr . ' [ RunTime:' . $runtime . 's ]', 'sql');
         }
     }
 
@@ -358,8 +431,8 @@ class Connection
                 // 记录操作结束时间
                 Debug::remark('queryEndTime', 'time');
                 $runtime = Debug::getRangeTime('queryStartTime', 'queryEndTime');
-                // 记录日志
-                //Log::record('[ Mongo ] ' . $this->queryStr . ' [ RunTime:' . $runtime . 's ]', 'sql');
+                // SQL监听
+                $this->trigger($this->queryStr, $runtime, $this->options);
             }
         }
     }
