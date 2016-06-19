@@ -429,8 +429,8 @@ class Builder
             'key'       => $field,
         ];
 
-        if ( ! empty($options['where'])) {
-            $cmd['query'] = $options['where'];
+        if (!empty($options['where'])) {
+            $cmd['query'] = $this->parseWhere($options['where']);
         }
 
         if (isset($options['maxTimeMS'])) {

@@ -350,7 +350,8 @@ class Query
     {
         $options = $this->parseExpress();
         $command = $this->builder->distinct($options, $field);
-        return $this->command($command);
+        $result  = $this->command($command);
+        return $result[0]['values'];
     }
 
     /**
