@@ -202,12 +202,12 @@ class Connection
     /**
      * 获取Mongo Manager对象
      * @access public
-     * @return Manager|false
+     * @return Manager|null
      */
     public function getMongo()
     {
         if (!$this->mongo) {
-            return false;
+            return null;
         } else {
             return $this->mongo;
         }
@@ -231,13 +231,13 @@ class Connection
     /**
      * 执行查询
      * @access public
-     * @param string $namespace
+     * @param string            $namespace 当前查询的collection
      * @param MongoQuery        $query 查询对象
      * @param ReadPreference    $readPreference readPreference
      * @param string|bool       $class 返回的数据集类型
      * @param string|array      $typeMap 指定返回的typeMap
      * @return mixed
-     * @throws Exception
+     * @throws MongoException
      */
     public function query($namespace, MongoQuery $query, ReadPreference $readPreference = null, $class = false, $typeMap = null)
     {
@@ -259,8 +259,8 @@ class Connection
     /**
      * 执行指令
      * @access public
-     * @param Command  $command 指令
-     * @param string $dbName
+     * @param Command           $command 指令
+     * @param string            $dbName 当前数据库名
      * @param ReadPreference    $readPreference readPreference
      * @param string|bool       $class 返回的数据集类型
      * @param string|array      $typeMap 指定返回的typeMap
@@ -284,7 +284,7 @@ class Connection
     /**
      * 获得数据集
      * @access protected
-     * @param bool|string       $class true 返回Mongo cursor 字符串用于指定返回的类名
+     * @param bool|string       $class true 返回Mongo cursor对象 字符串用于指定返回的类名
      * @param string|array      $typeMap 指定返回的typeMap
      * @return mixed
      */
@@ -317,9 +317,9 @@ class Connection
     /**
      * 执行写操作
      * @access public
-     * @param string $namespace
-     * @param BulkWrite $bulk
-     * @param WriteConcern $writeConcern
+     * @param string        $namespace
+     * @param BulkWrite     $bulk
+     * @param WriteConcern  $writeConcern
      *
      * @return WriteResult
      * @throws Exception
@@ -333,9 +333,9 @@ class Connection
                 $namespace = $this->dbName . '.' . $namespace;
             }
             $this->debug(true);
-            $writeResult = $this->mongo->executeBulkWrite($namespace, $bulk, $writeConcern);
+            $writeResult    = $this->mongo->executeBulkWrite($namespace, $bulk, $writeConcern);
             $this->debug(false);
-            $this->numRows = $writeResult->getMatchedCount();
+            $this->numRows  = $writeResult->getMatchedCount();
             return $writeResult;
         } catch (MongoException $e) {
             throw new Exception($e->getMessage());
@@ -358,6 +358,8 @@ class Connection
                 // 记录操作结束时间
                 Debug::remark('queryEndTime', 'time');
                 $runtime = Debug::getRangeTime('queryStartTime', 'queryEndTime');
+                // 记录日志
+                //Log::record('[ Mongo ] ' . $this->queryStr . ' [ RunTime:' . $runtime . 's ]', 'sql');
             }
         }
     }

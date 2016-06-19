@@ -19,7 +19,6 @@ use MongoDB\Driver\Exception as MongoException;
 use MongoDB\Driver\Query as MongoQuery;
 use MongoDB\Driver\ReadPreference;
 use MongoDB\Driver\WriteConcern;
-use PDO;
 use think\Cache;
 use think\Collection;
 use think\Config;
@@ -28,10 +27,8 @@ use think\mongo\Builder as MongoBuilder;
 use think\mongo\Connection as MongoConnection;
 use think\Exception;
 use think\exception\DbException;
-use think\exception\PDOException;
 use think\Loader;
 use think\Model;
-use think\model\Relation;
 use think\Paginator;
 
 class Query
@@ -183,8 +180,7 @@ class Query
      * @param bool|string       $class 指定返回的数据集对象
      * @param string|array      $typeMap 指定返回的typeMap
      * @return mixed
-     * @throws DbBindParamException
-     * @throws PDOException
+     * @throws MongoException
      */
     public function query($namespace, MongoQuery $query, ReadPreference $readPreference = null, $class = false, $typeMap = null)
     {
@@ -200,8 +196,7 @@ class Query
      * @param bool|string       $class 指定返回的数据集对象
      * @param string|array      $typeMap 指定返回的typeMap     
      * @return mixed
-     * @throws DbBindParamException
-     * @throws PDOException
+     * @throws MongoException
      */
     public function command(Command $command, $dbName = '', ReadPreference $readPreference = null, $class = false, $typeMap = null)
     {
@@ -215,8 +210,7 @@ class Query
      * @param BulkWrite $bulk
      * @param WriteConcern $writeConcern
      * @return int
-     * @throws DbBindParamException
-     * @throws PDOException
+     * @throws MongoException
      */
     public function execute($namespace, BulkWrite $bulk, WriteConcern $writeConcern = null)
     {
@@ -1070,7 +1064,7 @@ class Query
      */
     protected function parsePkWhere($data, &$options)
     {
-        $pk = $this->getPk();
+        $pk = isset($options['pk'])? $options['pk'] : $this->getPk();
 
         if (is_string($pk)) {
             // 根据主键查询
@@ -1095,17 +1089,19 @@ class Query
      * 插入记录
      * @access public
      * @param mixed $data 数据
-     * @param boolean $replace 是否replace
      * @return WriteResult
      */
-    public function insert(array $data, $replace = false)
+    public function insert(array $data)
     {
+        if (empty($data)) {
+            throw new Exception('miss data to insert');
+        }        
         // 分析查询表达式
         $options = $this->parseExpress();
 
         try {
             // 生成bulk对象
-            $bulk         = $this->builder->insert($data, $options, $replace);
+            $bulk         = $this->builder->insert($data, $options);
             $writeConcern = isset($options['writeConcern']) ? $options['writeConcern'] : null;
             $writeResult  = $this->execute($options['table'], $bulk, $writeConcern);
             return $writeResult->getInsertedCount();
@@ -1118,13 +1114,11 @@ class Query
      * 插入记录并获取自增ID
      * @access public
      * @param mixed $data 数据
-     * @param boolean $replace 是否replace
-     * @param string $sequence 自增序列名
      * @return integer
      */
-    public function insertGetId(array $data, $replace = false)
+    public function insertGetId(array $data)
     {
-        $this->insert($data, $replace);
+        $this->insert($data);
         return $this->getLastInsID();
     }
 
@@ -1159,13 +1153,13 @@ class Query
      * @param mixed $data 数据
      * @return int
      * @throws Exception
-     * @throws PDOException
+     * @throws MongoException
      */
     public function update(array $data)
     {
         $options = $this->parseExpress();
         if (empty($options['where'])) {
-            $pk = $this->getPk();
+            $pk = isset($options['pk'])? $options['pk'] : $this->getPk();
             // 如果存在主键数据 则自动作为更新条件
             if (is_string($pk) && isset($data[$pk])) {
                 $where[$pk] = $data[$pk];
@@ -1177,7 +1171,7 @@ class Query
                         $where[$field] = $data[$field];
                     } else {
                         // 如果缺少复合主键数据则不执行
-                        throw new Exception('miss pk data');
+                        throw new Exception('miss complex primary data');
                     }
                     unset($data[$field]);
                 }
@@ -1186,7 +1180,7 @@ class Query
                 // 如果没有任何更新条件则不执行
                 throw new Exception('miss update condition');
             } else {
-                $options['where']['AND'] = $where;
+                $options['where']['$and'] = $where;
             }
         }
 
@@ -1207,7 +1201,7 @@ class Query
      * @param array $data 表达式
      * @return int
      * @throws Exception
-     * @throws PDOException
+     * @throws MongoException
      */
     public function delete($data = [])
     {
@@ -1221,7 +1215,7 @@ class Query
 
         if (empty($options['where'])) {
             // 如果条件为空 不进行删除操作 除非设置 1=1
-            throw new Exception('no data to delete without where');
+            throw new Exception('delete without condition');
         }
         try {
             // 生成bulkWrite对象
@@ -1239,10 +1233,10 @@ class Query
      * 查找记录
      * @access public
      * @param array|string|Query|\Closure $data
-     * @return Collection|false|\PDOStatement|string
+     * @return Collection|false|Cursor|string
      * @throws DbException
      * @throws Exception
-     * @throws PDOException
+     * @throws MongoException
      */
     public function select($data = [])
     {
@@ -1323,10 +1317,10 @@ class Query
      * 查找单条记录
      * @access public
      * @param array|string|Query|\Closure $data
-     * @return array|false|\PDOStatement|string|Model
+     * @return array|false|Cursor|string|Model
      * @throws DbException
      * @throws Exception
-     * @throws PDOException
+     * @throws MongoException
      */
     public function find($data = [])
     {

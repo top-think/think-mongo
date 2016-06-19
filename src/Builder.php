@@ -17,13 +17,12 @@ use MongoDB\BSON\Regex;
 use MongoDB\Driver\BulkWrite;
 use MongoDB\Driver\Command;
 use MongoDB\Driver\Query as MongoQuery;
-use think\mongo\Connection as MongoConnection;
+use think\mongo\Connection;
 use think\mongo\Query;
 use think\Exception;
 
 class Builder
 {
-
     // connection对象实例
     protected $connection;
     // 查询对象实例
@@ -41,7 +40,7 @@ class Builder
      * @param Connection    $connection 数据库连接对象实例
      * @param Query         $query 数据库查询对象实例
      */
-    public function __construct(MongoConnection $connection, Query $query)
+    public function __construct(Connection $connection, Query $query)
     {
         $this->connection = $connection;
         $this->query      = $query;
@@ -311,13 +310,10 @@ class Builder
      * @param bool $replace 是否replace
      * @return BulkWrite
      */
-    public function insert(array $data, $options = [], $replace = false)
+    public function insert(array $data, $options = [])
     {
         // 分析并处理数据
         $data = $this->parseData($data, $options);
-        if (empty($data)) {
-            return 0;
-        }
         $bulk = new BulkWrite;
         if ($insertId = $bulk->insert($data)) {
             $this->insertId = $insertId;
@@ -332,7 +328,7 @@ class Builder
      * @param array $options 参数
      * @return BulkWrite
      */
-    public function insertAll($dataSet, $options)
+    public function insertAll($dataSet, $options = [])
     {
         $bulk = new BulkWrite;
         foreach ($dataSet as $data) {
@@ -352,13 +348,11 @@ class Builder
      * @param array $options 参数
      * @return BulkWrite
      */
-    public function update($data, $options)
+    public function update($data, $options = [])
     {
         $data  = $this->parseSet($data, $options);
         $where = $this->parseWhere($options['where']);
-        if (empty($data)) {
-            return '';
-        }
+
         if (1 == $options['limit']) {
             $updateOptions = ['multi' => false];
         } else {
