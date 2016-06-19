@@ -1,0 +1,19 @@
+{
+    "name": "topthink/think-mongo",
+    "license": "Apache-2.0",
+    "authors": [
+        {
+            "name": "liu21st",
+            "email": "liu21st@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {},
+    "autoload": {
+        "psr-4": {
+            "think\\mongo\\": "src"
+        },
+        "files": [
+        ]
+    }
+}
