@@ -92,7 +92,7 @@ class Builder
                 $result[$item] = $val[1];
             } elseif (is_null($val)) {
                 $result[$item] = 'NULL';
-            } elseif (is_scalar($val)) {
+            } else {
                 $result[$item] = $this->parseValue($val, $key);
             }            
         }
