@@ -166,8 +166,8 @@ class Connection
     /**
      * 调用Query类的查询方法
      * @access public
-     * @param string $method 方法名称
-     * @param array $args 调用参数
+     * @param string    $method 方法名称
+     * @param array     $args 调用参数
      * @return mixed
      */
     public function __call($method, $args)
@@ -192,8 +192,8 @@ class Connection
     /**
      * 设置数据库的配置参数
      * @access public
-     * @param string $config 配置名称
-     * @param mixed $value 配置值
+     * @param string    $config 配置名称
+     * @param mixed     $value 配置值
      * @return void
      */
     public function setConfig($config, $value)
@@ -396,9 +396,9 @@ class Connection
     /**
      * 触发SQL事件
      * @access protected
-     * @param string $sql 语句
-     * @param float $runtime 运行时间
-     * @param array $options 参数
+     * @param string    $sql 语句
+     * @param float     $runtime 运行时间
+     * @param array     $options 参数
      * @return bool
      */
     protected function trigger($sql, $runtime, $options = [])

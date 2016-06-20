@@ -51,8 +51,8 @@ class Query
     /**
      * 架构函数
      * @access public
-     * @param Connection $connection 数据库对象实例
-     * @param string $model 模型名
+     * @param Connection    $connection 数据库对象实例
+     * @param string        $model 模型名
      */
     public function __construct(Connection $connection = null, $model = '')
     {
@@ -65,8 +65,8 @@ class Query
     /**
      * 利用__call方法实现一些特殊的Model方法
      * @access public
-     * @param string $method 方法名称
-     * @param array $args 调用参数
+     * @param string    $method 方法名称
+     * @param array     $args 调用参数
      * @return mixed
      * @throws DbException
      * @throws Exception
@@ -206,9 +206,9 @@ class Query
     /**
      * 执行语句
      * @access public
-     * @param string $namespace
-     * @param BulkWrite $bulk
-     * @param WriteConcern $writeConcern
+     * @param string        $namespace
+     * @param BulkWrite     $bulk
+     * @param WriteConcern  $writeConcern
      * @return int
      * @throws MongoException
      */
@@ -245,8 +245,8 @@ class Query
     /**
      * 得到某个字段的值
      * @access public
-     * @param string $field 字段名
-     * @param mixed $default 默认值
+     * @param string    $field 字段名
+     * @param mixed     $default 默认值
      * @return mixed
      */
     public function value($field, $default = null)
@@ -397,8 +397,8 @@ class Query
      * 设置记录的某个字段值
      * 支持使用数据库字段和方法
      * @access public
-     * @param string|array $field 字段名
-     * @param mixed $value 字段值
+     * @param string|array  $field 字段名
+     * @param mixed         $value 字段值
      * @return integer
      */
     public function setField($field, $value = '')
@@ -414,9 +414,9 @@ class Query
     /**
      * 字段值(延迟)增长
      * @access public
-     * @param string $field 字段名
-     * @param integer $step 增长值
-     * @param integer $lazyTime 延时时间(s)
+     * @param string    $field 字段名
+     * @param integer   $step 增长值
+     * @param integer   $lazyTime 延时时间(s)
      * @return integer|true
      * @throws Exception
      */
@@ -441,9 +441,9 @@ class Query
     /**
      * 字段值（延迟）减少
      * @access public
-     * @param string $field 字段名
-     * @param integer $step 减少值
-     * @param integer $lazyTime 延时时间(s)
+     * @param string    $field 字段名
+     * @param integer   $step 减少值
+     * @param integer   $lazyTime 延时时间(s)
      * @return integer|true
      * @throws Exception
      */
@@ -469,9 +469,9 @@ class Query
      * 延时更新检查 返回false表示需要延时
      * 否则返回实际写入的数值
      * @access public
-     * @param string $guid 写入标识
-     * @param integer $step 写入步进值
-     * @param integer $lazyTime 延时时间(s)
+     * @param string    $guid 写入标识
+     * @param integer   $step 写入步进值
+     * @param integer   $lazyTime 延时时间(s)
      * @return false|integer
      */
     protected function lazyWrite($guid, $step, $lazyTime)
@@ -548,11 +548,11 @@ class Query
     /**
      * 分析查询表达式
      * @access public
-     * @param string $logic 查询逻辑    and or xor 
+     * @param string                $logic 查询逻辑    and or xor 
      * @param string|array|\Closure $field 查询字段
-     * @param mixed $op 查询表达式
-     * @param mixed $condition 查询条件
-     * @param array $param 查询参数
+     * @param mixed                 $op 查询表达式
+     * @param mixed                 $condition 查询条件
+     * @param array                 $param 查询参数
      * @return void
      */
     protected function parseWhereExp($logic, $field, $op, $condition, $param = [])
@@ -642,9 +642,9 @@ class Query
 
     /**
      * 分页查询
-     * @param int|null $listRows 每页数量
-     * @param bool $simple 简洁模式
-     * @param array $config 配置参数
+     * @param int|null  $listRows 每页数量
+     * @param bool      $simple 简洁模式
+     * @param array     $config 配置参数
      *                      page:当前页,
      *                      path:url路径,
      *                      query:url额外参数,
@@ -699,8 +699,8 @@ class Query
     /**
      * 查询缓存
      * @access public
-     * @param mixed $key
-     * @param integer $expire
+     * @param mixed     $key
+     * @param integer   $expire
      * @return $this
      */
     public function cache($key = true, $expire = null)
@@ -886,8 +886,8 @@ class Query
     /**
      * 设置返回字段
      * @access public
-     * @param array $field
-     * @param boolean $except 是否排除
+     * @param array     $field
+     * @param boolean   $except 是否排除
      * @return $this
      */
     public function field($field, $except = false)
@@ -996,8 +996,8 @@ class Query
     /**
      * 设置sort
      * @access public
-     * @param array|string|object $field
-     * @param string $order
+     * @param array|string|object   $field
+     * @param string                $order
      * @return $this
      */
     public function order($field, $order = '')
@@ -1037,7 +1037,6 @@ class Query
     /**
      * 获取当前数据表的主键
      * @access public
-     * @param string $table 数据表名
      * @return string|array
      */
     public function getPk()
@@ -1083,8 +1082,8 @@ class Query
     /**
      * 把主键值转换为查询条件 支持复合主键
      * @access public
-     * @param array|string $data 主键数据
-     * @param mixed $options 表达式参数
+     * @param array|string  $data 主键数据
+     * @param mixed         $options 表达式参数
      * @return void
      * @throws Exception
      */
@@ -1422,9 +1421,9 @@ class Query
     /**
      * 分批数据返回处理
      * @access public
-     * @param integer $count 每次处理的数据数量
-     * @param callable $callback 处理回调方法
-     * @param string $column 分批处理的字段名
+     * @param integer   $count 每次处理的数据数量
+     * @param callable  $callback 处理回调方法
+     * @param string    $column 分批处理的字段名
      * @return boolean
      */
     public function chunk($count, $callback, $column = null)

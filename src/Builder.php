@@ -60,8 +60,8 @@ class Builder
     /**
      * value分析
      * @access protected
-     * @param mixed $value
-     * @param string $field
+     * @param mixed     $value
+     * @param string    $field
      * @return string
      */
     protected function parseValue($value, $field = '')
@@ -305,9 +305,8 @@ class Builder
     /**
      * 生成insert BulkWrite对象
      * @access public
-     * @param array $data 数据
-     * @param array $options 表达式
-     * @param bool $replace 是否replace
+     * @param array     $data 数据
+     * @param array     $options 表达式
      * @return BulkWrite
      */
     public function insert(array $data, $options = [])
@@ -325,8 +324,8 @@ class Builder
     /**
      * 生成insertall BulkWrite对象
      * @access public
-     * @param array $dataSet 数据集
-     * @param array $options 参数
+     * @param array     $dataSet 数据集
+     * @param array     $options 参数
      * @return BulkWrite
      */
     public function insertAll($dataSet, $options = [])
@@ -346,8 +345,8 @@ class Builder
     /**
      * 生成update BulkWrite对象
      * @access public
-     * @param array $fields 数据
-     * @param array $options 参数
+     * @param array     $data 数据
+     * @param array     $options 参数
      * @return BulkWrite
      */
     public function update($data, $options = [])
@@ -369,8 +368,7 @@ class Builder
     /**
      * 生成delete BulkWrite对象
      * @access public
-     * @param array $fields 数据
-     * @param array $options 参数
+     * @param array     $options 参数
      * @return BulkWrite
      */
     public function delete($options)
@@ -424,8 +422,8 @@ class Builder
     /**
      * 生成distinct命令
      * @access public
-     * @param array $options 参数
-     * @param string $field 字段名
+     * @param array     $options 参数
+     * @param string    $field 字段名
      * @return Command
      */
     public function distinct($options, $field)
