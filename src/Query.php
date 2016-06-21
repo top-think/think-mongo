@@ -351,6 +351,9 @@ class Query
     public function cmd($command, $extra = null, $db = null)
     {
         if (is_array($command) || is_object($command)) {
+            if ($this->connection->getConfig('debug')) {
+                $this->connection->log('cmd', 'cmd', $command);
+            }
             // 直接创建Command对象
             $command = new Command($command);
         } else {

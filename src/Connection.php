@@ -22,10 +22,10 @@ use MongoDB\Driver\Query as MongoQuery;
 use MongoDB\Driver\ReadPreference;
 use MongoDB\Driver\WriteConcern;
 use think\Db;
-use think\mongo\Query as Query;
 use think\Debug;
 use think\Exception;
 use think\Log;
+use think\mongo\Query;
 
 /**
  * Mongo数据库驱动
@@ -38,15 +38,15 @@ class Connection
     // 查询数据集类型
     protected $resultSetType = 'array';
     // 查询数据类型
-    protected $typeMap = 'array';
+    protected $typeMap;
     protected $mongo; // MongoDb Object
     protected $cursor; // MongoCursor Object
 
     // 监听回调
     protected static $event = [];
-    /** @var PDO[] 数据库连接ID 支持多个连接 */
+    /** @var 数据库连接ID 支持多个连接 */
     protected $links = [];
-    /** @var PDO 当前连接ID */
+    /** @var 当前连接ID */
     protected $linkID;
     protected $linkRead;
     protected $linkWrite;
@@ -102,7 +102,7 @@ class Connection
         // 是否需要进行SQL性能分析
         'sql_explain'    => false,
         // typeMap
-        'type_map'       => [ 'root' => 'array', 'document' => 'array'],
+        'type_map'       => ['root' => 'array', 'document' => 'array'],
     ];
 
     /**
@@ -130,9 +130,9 @@ class Connection
             if (empty($config)) {
                 $config = $this->config;
             }
-            $this->dbName   = $config['database'];
-            $this->typeMap  = $config['type_map'];
-            $host           = 'mongodb://' . ($config['username'] ? "{$config['username']}" : '') . ($config['password'] ? ":{$config['password']}@" : '') . $config['hostname'] . ($config['hostport'] ? ":{$config['hostport']}" : '') . '/' . ($config['database'] ? "{$config['database']}" : '');
+            $this->dbName  = $config['database'];
+            $this->typeMap = $config['type_map'];
+            $host          = 'mongodb://' . ($config['username'] ? "{$config['username']}" : '') . ($config['password'] ? ":{$config['password']}@" : '') . $config['hostname'] . ($config['hostport'] ? ":{$config['hostport']}" : '') . '/' . ($config['database'] ? "{$config['database']}" : '');
             try {
                 $this->links[$linkNum] = new Manager($host, $this->config['params']);
             } catch (ConnectionException $e) {
@@ -248,11 +248,11 @@ class Connection
         try {
             if (false === strpos($namespace, '.')) {
                 $namespace = $this->dbName . '.' . $namespace;
-            }            
+            }
             if (!empty($this->queryStr)) {
                 // 记录执行指令
                 $this->queryStr = $namespace . '.' . $this->queryStr;
-            }            
+            }
             $this->debug(true);
             $this->cursor = $this->mongo->executeQuery($namespace, $query, $readPreference);
             $this->debug(false);
@@ -282,7 +282,7 @@ class Connection
             $dbName = $dbName ?: $this->dbName;
             if (!empty($this->queryStr)) {
                 $this->queryStr = $dbName . '.' . $this->queryStr;
-            }            
+            }
             $this->cursor = $this->mongo->executeCommand($dbName, $command, $readPreference);
             $this->debug(false);
             return $this->getResult($class, $typeMap);
@@ -304,21 +304,21 @@ class Connection
             return $this->cursor;
         }
         // 设置结果数据类型
-        if(is_null($typeMap)){
+        if (is_null($typeMap)) {
             $typeMap = $this->typeMap;
         }
         $typeMap = is_string($typeMap) ? ['root' => $typeMap] : $typeMap;
         $this->cursor->setTypeMap($typeMap);
 
         // 获取数据集
-        $result         = $this->cursor->toArray();
-        $this->numRows  = count($result);
+        $result        = $this->cursor->toArray();
+        $this->numRows = count($result);
         if (!empty($class)) {
             // 返回指定数据集对象类
             $result = new $class($result);
-        } elseif ('collection' == $this->resultSetType){
+        } elseif ('collection' == $this->resultSetType) {
             // 返回数据集Collection对象
-            $result = new Collection($result);            
+            $result = new Collection($result);
         }
 
         return $result;
@@ -345,11 +345,11 @@ class Connection
             if (!empty($this->queryStr)) {
                 // 记录执行指令
                 $this->queryStr = $namespace . '.' . $this->queryStr;
-            }             
+            }
             $this->debug(true);
-            $writeResult    = $this->mongo->executeBulkWrite($namespace, $bulk, $writeConcern);
+            $writeResult = $this->mongo->executeBulkWrite($namespace, $bulk, $writeConcern);
             $this->debug(false);
-            $this->numRows  = $writeResult->getMatchedCount();
+            $this->numRows = $writeResult->getMatchedCount();
             return $writeResult;
         } catch (MongoException $e) {
             throw new Exception($e->getMessage());
@@ -366,20 +366,20 @@ class Connection
      */
     public function log($type, $data, $options = [])
     {
-        switch(strtolower($type)){
+        switch (strtolower($type)) {
             case 'find':
             case 'insert':
             case 'remove':
                 $this->queryStr = $type . '(' . ($data ? json_encode($data) : '') . ');';
                 break;
             case 'update':
-                $this->queryStr = $type . '(' . json_encode($options) . ','. json_encode($data) . ');';
+                $this->queryStr = $type . '(' . json_encode($options) . ',' . json_encode($data) . ');';
                 break;
             case 'cmd':
                 $this->queryStr = $data . '(' . json_encode($options) . ');';
                 break;
-        }        
-        $this->options  = $options;
+        }
+        $this->options = $options;
     }
 
     /**
@@ -489,7 +489,7 @@ class Connection
      * 连接分布式服务器
      * @access protected
      * @param boolean $master 主服务器
-     * @return PDO
+     * @return Manager
      */
     protected function multiConnect($master = false)
     {
