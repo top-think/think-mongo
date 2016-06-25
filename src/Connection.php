@@ -101,6 +101,8 @@ class Connection
         'auto_timestamp' => false,
         // 是否需要进行SQL性能分析
         'sql_explain'    => false,
+        // 是否_id转换为id
+        'pk_convert_id'  => false,
         // typeMap
         'type_map'       => ['root' => 'array', 'document' => 'array'],
     ];

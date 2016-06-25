@@ -17,9 +17,9 @@ use MongoDB\BSON\Regex;
 use MongoDB\Driver\BulkWrite;
 use MongoDB\Driver\Command;
 use MongoDB\Driver\Query as MongoQuery;
+use think\Exception;
 use think\mongo\Connection;
 use think\mongo\Query;
-use think\Exception;
 
 class Builder
 {
@@ -54,6 +54,9 @@ class Builder
      */
     protected function parseKey($key)
     {
+        if ('id' == $key && $this->connection->getConfig('pk_convert_id')) {
+            $key = '_id';
+        }
         return trim($key);
     }
 
@@ -94,7 +97,7 @@ class Builder
                 $result[$item] = 'NULL';
             } else {
                 $result[$item] = $this->parseValue($val, $key);
-            }            
+            }
         }
         return $result;
     }
@@ -152,7 +155,7 @@ class Builder
             $where = [];
         }
 
-        $filter         = [];
+        $filter = [];
         foreach ($where as $logic => $val) {
             foreach ($val as $field => $value) {
                 if ($value instanceof \Closure) {
@@ -175,8 +178,8 @@ class Builder
                         }
                     } else {
                         // 对字段使用表达式查询
-                        $field  = is_string($field) ? $field : '';
-                        $filter[$logic][]   = $this->parseWhereItem($field, $value);
+                        $field            = is_string($field) ? $field : '';
+                        $filter[$logic][] = $this->parseWhereItem($field, $value);
                     }
                 }
             }
@@ -250,9 +253,9 @@ class Builder
         } elseif ('regex' == $exp) {
             $query[$key] = new Regex($value);
         } elseif ('< time' == $exp) {
-            $query[$key] = [ '$lt', $this->parseDateTime($value, $field)];
+            $query[$key] = ['$lt', $this->parseDateTime($value, $field)];
         } elseif ('> time' == $exp) {
-            $query[$key] = [ '$gt', $this->parseDateTime($value, $field)];
+            $query[$key] = ['$gt', $this->parseDateTime($value, $field)];
         } elseif ('between time' == $exp) {
             // 区间查询
             $value       = is_array($value) ? $value : explode(',', $value);
@@ -279,12 +282,12 @@ class Builder
     {
         // 获取时间字段类型
         $type = $this->query->getTableInfo('', 'type');
-        if(isset($type[$key])){
+        if (isset($type[$key])) {
             $value = strtotime($value) ?: $value;
-            if(preg_match('/(datetime|timestamp)/is', $type[$key])){
+            if (preg_match('/(datetime|timestamp)/is', $type[$key])) {
                 // 日期及时间戳类型
                 $value = date('Y-m-d H:i:s', $value);
-            }elseif(preg_match('/(date)/is', $type[$key])){
+            } elseif (preg_match('/(date)/is', $type[$key])) {
                 // 日期及时间戳类型
                 $value = date('Y-m-d', $value);
             }
@@ -317,7 +320,7 @@ class Builder
         if ($insertId = $bulk->insert($data)) {
             $this->insertId = $insertId;
         }
-        $this->log('insert', $data, $options);    
+        $this->log('insert', $data, $options);
         return $bulk;
     }
 
@@ -338,7 +341,7 @@ class Builder
                 $this->insertId[] = $insertId;
             }
         }
-        $this->log('insert', $dataSet, $options); 
+        $this->log('insert', $dataSet, $options);
         return $bulk;
     }
 
@@ -381,7 +384,7 @@ class Builder
             $deleteOptions = ['limit' => 0];
         }
         $bulk->delete($where, $deleteOptions);
-        $this->log('remove', $where, $deleteOptions);  
+        $this->log('remove', $where, $deleteOptions);
         return $bulk;
     }
 
@@ -395,7 +398,7 @@ class Builder
     {
         $where = $this->parseWhere($options['where']);
         $query = new MongoQuery($where, $options);
-        $this->log('find', $where, $options);          
+        $this->log('find', $where, $options);
         return $query;
     }
 
@@ -415,7 +418,7 @@ class Builder
             }
         }
         $command = new Command($cmd);
-        $this->log('cmd', 'count', $cmd);          
+        $this->log('cmd', 'count', $cmd);
         return $command;
     }
 
@@ -429,8 +432,8 @@ class Builder
     public function distinct($options, $field)
     {
         $cmd = [
-            'distinct'  => $options['table'],
-            'key'       => $field,
+            'distinct' => $options['table'],
+            'key'      => $field,
         ];
 
         if (!empty($options['where'])) {
@@ -441,7 +444,7 @@ class Builder
             $cmd['maxTimeMS'] = $options['maxTimeMS'];
         }
         $command = new Command($cmd);
-        $this->log('cmd', 'distinct', $cmd);          
+        $this->log('cmd', 'distinct', $cmd);
         return $command;
     }
 
@@ -454,7 +457,7 @@ class Builder
     {
         $cmd     = ['listCollections' => 1];
         $command = new Command($cmd);
-        $this->log('cmd', 'listCollections', $cmd);        
+        $this->log('cmd', 'listCollections', $cmd);
         return $command;
     }
 
@@ -475,6 +478,6 @@ class Builder
     {
         if ($this->connection->getConfig('debug')) {
             $this->connection->log($type, $data, $options);
-        }        
-    }  
+        }
+    }
 }
