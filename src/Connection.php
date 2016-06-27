@@ -14,18 +14,20 @@ namespace think\mongo;
 use MongoDB\Driver\BulkWrite;
 use MongoDB\Driver\Command;
 use MongoDB\Driver\Cursor;
-use MongoDB\Driver\Exception as MongoException;
+use MongoDB\Driver\Exception\AuthenticationException;
+use MongoDB\Driver\Exception\BulkWriteException;
 use MongoDB\Driver\Exception\ConnectionException;
-use MongoDB\Driver\Exception\ConnectionTimeoutException;
+use MongoDB\Driver\Exception\InvalidArgumentException;
+use MongoDB\Driver\Exception\RuntimeException;
 use MongoDB\Driver\Manager;
 use MongoDB\Driver\Query as MongoQuery;
 use MongoDB\Driver\ReadPreference;
 use MongoDB\Driver\WriteConcern;
 use think\Db;
-use think\mongo\Query as Query;
 use think\Debug;
 use think\Exception;
 use think\Log;
+use think\mongo\Query as Query;
 
 /**
  * Mongo数据库驱动
@@ -102,7 +104,7 @@ class Connection
         // 是否需要进行SQL性能分析
         'sql_explain'    => false,
         // typeMap
-        'type_map'       => [ 'root' => 'array', 'document' => 'array'],
+        'type_map'       => ['root' => 'array', 'document' => 'array'],
     ];
 
     /**
@@ -123,28 +125,25 @@ class Connection
     /**
      * 连接数据库方法
      * @access public
+     * @param array         $config 连接参数
+     * @param integer       $linkNum 连接序号
+     * @throws InvalidArgumentException
+     * @throws RuntimeException
      */
-    public function connect(array $config = [], $linkNum = 0, $autoConnection = false)
+    public function connect(array $config = [], $linkNum = 0)
     {
         if (!isset($this->links[$linkNum])) {
             if (empty($config)) {
                 $config = $this->config;
             }
-            $this->dbName   = $config['database'];
-            $this->typeMap  = $config['type_map'];
-            $host           = 'mongodb://' . ($config['username'] ? "{$config['username']}" : '') . ($config['password'] ? ":{$config['password']}@" : '') . $config['hostname'] . ($config['hostport'] ? ":{$config['hostport']}" : '') . '/' . ($config['database'] ? "{$config['database']}" : '');
-            try {
-                $this->links[$linkNum] = new Manager($host, $this->config['params']);
-            } catch (ConnectionException $e) {
-                throw new Exception($e->getMessage());
-            } catch (ConnectionTimeoutException $e) {
-                if ($autoConnection) {
-                    Log::record($e->getMessage(), 'error');
-                    return $this->connect($autoConnection, $linkNum);
-                } else {
-                    throw new Exception($e->getMessage());
-                }
+            $this->dbName  = $config['database'];
+            $this->typeMap = $config['type_map'];
+            // 记录数据集返回类型
+            if (isset($config['resultset_type'])) {
+                $this->resultSetType = $config['resultset_type'];
             }
+            $host                  = 'mongodb://' . ($config['username'] ? "{$config['username']}" : '') . ($config['password'] ? ":{$config['password']}@" : '') . $config['hostname'] . ($config['hostport'] ? ":{$config['hostport']}" : '') . '/' . ($config['database'] ? "{$config['database']}" : '');
+            $this->links[$linkNum] = new Manager($host, $this->config['params']);
         }
         return $this->links[$linkNum];
     }
@@ -239,27 +238,27 @@ class Connection
      * @param string|bool       $class 返回的数据集类型
      * @param string|array      $typeMap 指定返回的typeMap
      * @return mixed
-     * @throws MongoException
+     * @throws AuthenticationException
+     * @throws InvalidArgumentException
+     * @throws ConnectionException
+     * @throws RuntimeException
      */
     public function query($namespace, MongoQuery $query, ReadPreference $readPreference = null, $class = false, $typeMap = null)
     {
         $this->initConnect(false);
         Db::$queryTimes++;
-        try {
-            if (false === strpos($namespace, '.')) {
-                $namespace = $this->dbName . '.' . $namespace;
-            }            
-            if (!empty($this->queryStr)) {
-                // 记录执行指令
-                $this->queryStr = $namespace . '.' . $this->queryStr;
-            }            
-            $this->debug(true);
-            $this->cursor = $this->mongo->executeQuery($namespace, $query, $readPreference);
-            $this->debug(false);
-            return $this->getResult($class, $typeMap);
-        } catch (MongoException $e) {
-            throw new Exception($e->getMessage());
+
+        if (false === strpos($namespace, '.')) {
+            $namespace = $this->dbName . '.' . $namespace;
         }
+        if (!empty($this->queryStr)) {
+            // 记录执行指令
+            $this->queryStr = $namespace . '.' . $this->queryStr;
+        }
+        $this->debug(true);
+        $this->cursor = $this->mongo->executeQuery($namespace, $query, $readPreference);
+        $this->debug(false);
+        return $this->getResult($class, $typeMap);
     }
 
     /**
@@ -271,24 +270,25 @@ class Connection
      * @param string|bool       $class 返回的数据集类型
      * @param string|array      $typeMap 指定返回的typeMap
      * @return mixed
-     * @throws Exception
+     * @throws AuthenticationException
+     * @throws InvalidArgumentException
+     * @throws ConnectionException
+     * @throws RuntimeException
      */
     public function command(Command $command, $dbName = '', ReadPreference $readPreference = null, $class = false, $typeMap)
     {
         $this->initConnect(false);
         Db::$queryTimes++;
-        try {
-            $this->debug(true);
-            $dbName = $dbName ?: $this->dbName;
-            if (!empty($this->queryStr)) {
-                $this->queryStr = $dbName . '.' . $this->queryStr;
-            }            
-            $this->cursor = $this->mongo->executeCommand($dbName, $command, $readPreference);
-            $this->debug(false);
-            return $this->getResult($class, $typeMap);
-        } catch (MongoException $e) {
-            throw new Exception($e->getMessage());
+
+        $this->debug(true);
+        $dbName = $dbName ?: $this->dbName;
+        if (!empty($this->queryStr)) {
+            $this->queryStr = $dbName . '.' . $this->queryStr;
         }
+        $this->cursor = $this->mongo->executeCommand($dbName, $command, $readPreference);
+        $this->debug(false);
+        return $this->getResult($class, $typeMap);
+
     }
 
     /**
@@ -304,23 +304,22 @@ class Connection
             return $this->cursor;
         }
         // 设置结果数据类型
-        if(is_null($typeMap)){
+        if (is_null($typeMap)) {
             $typeMap = $this->typeMap;
         }
         $typeMap = is_string($typeMap) ? ['root' => $typeMap] : $typeMap;
         $this->cursor->setTypeMap($typeMap);
 
         // 获取数据集
-        $result         = $this->cursor->toArray();
-        $this->numRows  = count($result);
+        $result        = $this->cursor->toArray();
+        $this->numRows = count($result);
         if (!empty($class)) {
             // 返回指定数据集对象类
             $result = new $class($result);
-        } elseif ('collection' == $this->resultSetType){
+        } elseif ('collection' == $this->resultSetType) {
             // 返回数据集Collection对象
-            $result = new Collection($result);            
+            $result = new Collection($result);
         }
-
         return $result;
     }
 
@@ -332,28 +331,28 @@ class Connection
      * @param WriteConcern  $writeConcern
      *
      * @return WriteResult
-     * @throws Exception
+     * @throws AuthenticationException
+     * @throws InvalidArgumentException
+     * @throws ConnectionException
+     * @throws RuntimeException
+     * @throws BulkWriteException
      */
     public function execute($namespace, BulkWrite $bulk, WriteConcern $writeConcern = null)
     {
         $this->initConnect(true);
         Db::$executeTimes++;
-        try {
-            if (false === strpos($namespace, '.')) {
-                $namespace = $this->dbName . '.' . $namespace;
-            }
-            if (!empty($this->queryStr)) {
-                // 记录执行指令
-                $this->queryStr = $namespace . '.' . $this->queryStr;
-            }             
-            $this->debug(true);
-            $writeResult    = $this->mongo->executeBulkWrite($namespace, $bulk, $writeConcern);
-            $this->debug(false);
-            $this->numRows  = $writeResult->getMatchedCount();
-            return $writeResult;
-        } catch (MongoException $e) {
-            throw new Exception($e->getMessage());
+        if (false === strpos($namespace, '.')) {
+            $namespace = $this->dbName . '.' . $namespace;
         }
+        if (!empty($this->queryStr)) {
+            // 记录执行指令
+            $this->queryStr = $namespace . '.' . $this->queryStr;
+        }
+        $this->debug(true);
+        $writeResult = $this->mongo->executeBulkWrite($namespace, $bulk, $writeConcern);
+        $this->debug(false);
+        $this->numRows = $writeResult->getMatchedCount();
+        return $writeResult;
     }
 
     /**
@@ -366,20 +365,20 @@ class Connection
      */
     public function log($type, $data, $options = [])
     {
-        switch(strtolower($type)){
+        switch (strtolower($type)) {
             case 'find':
             case 'insert':
             case 'remove':
                 $this->queryStr = $type . '(' . ($data ? json_encode($data) : '') . ');';
                 break;
             case 'update':
-                $this->queryStr = $type . '(' . json_encode($options) . ','. json_encode($data) . ');';
+                $this->queryStr = $type . '(' . json_encode($options) . ',' . json_encode($data) . ');';
                 break;
             case 'cmd':
                 $this->queryStr = $data . '(' . json_encode($options) . ');';
                 break;
-        }        
-        $this->options  = $options;
+        }
+        $this->options = $options;
     }
 
     /**
@@ -518,18 +517,11 @@ class Connection
             // 读写操作不区分服务器 每次随机连接的数据库
             $r = floor(mt_rand(0, count($_config['hostname']) - 1));
         }
-        $dbMaster = false;
-        if ($m != $r) {
-            $dbMaster = [];
-            foreach (['username', 'password', 'hostname', 'hostport', 'database', 'dsn', 'charset'] as $name) {
-                $dbMaster[$name] = isset($_config[$name][$m]) ? $_config[$name][$m] : $_config[$name][0];
-            }
-        }
         $dbConfig = [];
         foreach (['username', 'password', 'hostname', 'hostport', 'database', 'dsn', 'charset'] as $name) {
             $dbConfig[$name] = isset($_config[$name][$r]) ? $_config[$name][$r] : $_config[$name][0];
         }
-        return $this->connect($dbConfig, $r, $r == $m ? false : $dbMaster);
+        return $this->connect($dbConfig, $r);
     }
 
     /**
