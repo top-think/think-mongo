@@ -23,12 +23,12 @@ use think\Cache;
 use think\Collection;
 use think\Config;
 use think\Db;
-use think\mongo\Builder;
-use think\mongo\Connection;
 use think\Exception;
 use think\exception\DbException;
 use think\Loader;
 use think\Model;
+use think\mongo\Builder;
+use think\mongo\Connection;
 use think\Paginator;
 
 class Query
@@ -84,7 +84,7 @@ class Query
             $where[$name] = $args[0];
             return $this->where($where)->value($args[1]);
         } else {
-            throw new Exception('method not exists:'. __CLASS__ . '->' . $method);
+            throw new Exception('method not exists:' . __CLASS__ . '->' . $method);
         }
     }
 
@@ -191,10 +191,10 @@ class Query
      * 执行指令 返回数据集
      * @access public
      * @param Command           $command 指令
-     * @param string            $dbName     
+     * @param string            $dbName
      * @param ReadPreference    $readPreference readPreference
      * @param bool|string       $class 指定返回的数据集对象
-     * @param string|array      $typeMap 指定返回的typeMap     
+     * @param string|array      $typeMap 指定返回的typeMap
      * @return mixed
      * @throws MongoException
      */
@@ -254,10 +254,10 @@ class Query
         $result = null;
         if (!empty($this->options['cache'])) {
             // 判断查询缓存
-            $cache  = $this->options['cache'];
+            $cache = $this->options['cache'];
             if (empty($this->options['table'])) {
                 $this->options['table'] = $this->getTable();
-            }            
+            }
             $key    = is_string($cache['key']) ? $cache['key'] : md5($field . serialize($this->options));
             $result = Cache::get($key);
         }
@@ -265,11 +265,11 @@ class Query
             if (isset($this->options['field'])) {
                 unset($this->options['field']);
             }
-            $cursor     = $this->field($field)->fetchCursor(true)->find();
+            $cursor = $this->field($field)->fetchCursor(true)->find();
             $cursor->setTypeMap(['root' => 'array']);
-            $resultSet  = $cursor->toArray();
-            $data       = isset($resultSet[0]) ? $resultSet[0] : null;
-            $result     = $data[$field];
+            $resultSet = $cursor->toArray();
+            $data      = isset($resultSet[0]) ? $resultSet[0] : null;
+            $result    = $data[$field];
             if (isset($cache)) {
                 // 缓存数据
                 Cache::set($key, $result, $cache['expire']);
@@ -293,10 +293,10 @@ class Query
         $result = false;
         if (!empty($this->options['cache'])) {
             // 判断查询缓存
-            $cache  = $this->options['cache'];
+            $cache = $this->options['cache'];
             if (empty($this->options['table'])) {
                 $this->options['table'] = $this->getTable();
-            }            
+            }
             $guid   = is_string($cache['key']) ? $cache['key'] : md5($field . serialize($this->options));
             $result = Cache::get($guid);
         }
@@ -307,9 +307,9 @@ class Query
             if ($key && '*' != $field) {
                 $field = $key . ',' . $field;
             }
-            $cursor     = $this->field($field)->fetchCursor(true)->select();
+            $cursor = $this->field($field)->fetchCursor(true)->select();
             $cursor->setTypeMap(['root' => 'array']);
-            $resultSet  = $cursor->toArray();
+            $resultSet = $cursor->toArray();
             if ($resultSet) {
                 $fields = array_keys($resultSet[0]);
                 $count  = count($fields);
@@ -341,17 +341,27 @@ class Query
     }
 
     /**
-     * 执行Builder封装的command
+     * 执行command
      * @access public
-     * @param string $field 字段名
-     * @param mixed  $extra 扩展参数
+     * @param string|array|object   $command 指令
+     * @param mixed                 $extra 额外参数
+     * @param string                $db 数据库名
      * @return array
      */
     public function cmd($command, $extra = null, $db = null)
     {
-        $options = $this->parseExpress();
-        $command = $this->builder->$command($options, $extra);
-        return $this->command($command);
+        if (is_array($command) || is_object($command)) {
+            if ($this->connection->getConfig('debug')) {
+                $this->connection->log('cmd', 'cmd', $command);
+            }
+            // 直接创建Command对象
+            $command = new Command($command);
+        } else {
+            // 调用Builder封装的Command对象
+            $options = $this->parseExpress();
+            $command = $this->builder->$command($options, $extra);
+        }
+        return $this->command($command, $db);
     }
 
     /**
@@ -362,7 +372,7 @@ class Query
      */
     public function distinct($field)
     {
-        $result  = $this->cmd('distinct', $field);
+        $result = $this->cmd('distinct', $field);
         return $result[0]['values'];
     }
 
@@ -374,9 +384,9 @@ class Query
      */
     public function listCollections($db = '')
     {
-        $cursor  = $this->cmd('listCollections', null, $db);
-        $result  = [];
-        foreach($cursor as $collection){
+        $cursor = $this->cmd('listCollections', null, $db);
+        $result = [];
+        foreach ($cursor as $collection) {
             $result[] = $collection['name'];
         }
         return $result;
@@ -389,7 +399,7 @@ class Query
      */
     public function count()
     {
-        $result  = $this->cmd('count');
+        $result = $this->cmd('count');
         return $result[0]['n'];
     }
 
@@ -525,7 +535,7 @@ class Query
     {
         $param = func_get_args();
         array_shift($param);
-        $this->parseWhereExp('$or',$field, $op, $condition, $param);
+        $this->parseWhereExp('$or', $field, $op, $condition, $param);
         return $this;
     }
 
@@ -541,14 +551,14 @@ class Query
     {
         $param = func_get_args();
         array_shift($param);
-        $this->parseWhereExp('$nor',$field, $op, $condition, $param);
+        $this->parseWhereExp('$nor', $field, $op, $condition, $param);
         return $this;
     }
 
     /**
      * 分析查询表达式
      * @access public
-     * @param string                $logic 查询逻辑    and or xor 
+     * @param string                $logic 查询逻辑    and or xor
      * @param string|array|\Closure $field 查询字段
      * @param mixed                 $op 查询表达式
      * @param mixed                 $condition 查询条件
@@ -588,7 +598,7 @@ class Query
                 $this->options['where'][$logic] = [];
             }
             $this->options['where'][$logic] = array_merge($this->options['where'][$logic], $where);
-        }        
+        }
     }
 
     /**
@@ -601,10 +611,10 @@ class Query
      */
     public function whereTime($field, $op, $range = null)
     {
-        if(is_null($range)){
+        if (is_null($range)) {
             // 使用日期表达式
             $date = getdate();
-            switch(strtolower($op)){
+            switch (strtolower($op)) {
                 case 'today':
                 case 'd':
                     $range = 'today';
@@ -622,19 +632,19 @@ class Query
                     $range = mktime(0, 0, 0, 1, 1, $date['year']);
                     break;
                 case 'yesterday':
-                    $range = ['yesterday','today'];
+                    $range = ['yesterday', 'today'];
                     break;
                 case 'last week':
-                    $range = ['last week 00:00:00','this week 00:00:00'];
+                    $range = ['last week 00:00:00', 'this week 00:00:00'];
                     break;
                 case 'last month':
-                    $range = [date('y-m-01',strtotime('-1 month')),mktime(0, 0, 0, $date['mon'], 1, $date['year'])];
+                    $range = [date('y-m-01', strtotime('-1 month')), mktime(0, 0, 0, $date['mon'], 1, $date['year'])];
                     break;
                 case 'last year':
-                    $range = [mktime(0, 0, 0, 1, 1, $date['year']-1),mktime(0, 0, 0, 1, 1, $date['year'])];
-                    break;                    
+                    $range = [mktime(0, 0, 0, 1, 1, $date['year'] - 1), mktime(0, 0, 0, 1, 1, $date['year'])];
+                    break;
             }
-            $op = is_array($range)? 'between' : '>';
+            $op = is_array($range) ? 'between' : '>';
         }
         $this->where($field, strtolower($op) . ' time', $range);
         return $this;
@@ -743,7 +753,7 @@ class Query
     /**
      * 设置typeMap
      * @access public
-     * @param string|array $typeMap 
+     * @param string|array $typeMap
      * @return $this
      */
     public function typeMap($typeMap)
@@ -874,7 +884,7 @@ class Query
     /**
      * maxTimeMS
      * @access public
-     * @param string $maxTimeMS 
+     * @param string $maxTimeMS
      * @return $this
      */
     public function maxTimeMS($maxTimeMS)
@@ -1089,7 +1099,7 @@ class Query
      */
     protected function parsePkWhere($data, &$options)
     {
-        $pk = isset($options['pk'])? $options['pk'] : $this->getPk();
+        $pk = isset($options['pk']) ? $options['pk'] : $this->getPk();
 
         if (is_string($pk)) {
             // 根据主键查询
@@ -1120,7 +1130,7 @@ class Query
     {
         if (empty($data)) {
             throw new Exception('miss data to insert');
-        }        
+        }
         // 分析查询表达式
         $options = $this->parseExpress();
         try {
@@ -1183,7 +1193,7 @@ class Query
     {
         $options = $this->parseExpress();
         if (empty($options['where'])) {
-            $pk = isset($options['pk'])? $options['pk'] : $this->getPk();
+            $pk = isset($options['pk']) ? $options['pk'] : $this->getPk();
             // 如果存在主键数据 则自动作为更新条件
             if (is_string($pk) && isset($data[$pk])) {
                 $where[$pk] = $data[$pk];
@@ -1246,7 +1256,7 @@ class Query
             $bulk         = $this->builder->delete($options);
             $writeConcern = isset($options['writeConcern']) ? $options['writeConcern'] : null;
             // 执行操作
-            $writeResult  = $this->execute($options['table'], $bulk, $writeConcern);
+            $writeResult = $this->execute($options['table'], $bulk, $writeConcern);
             return $writeResult->getDeletedCount();
         } catch (MongoException $e) {
             throw new Exception($e->getMessage());
@@ -1312,6 +1322,9 @@ class Query
 
         // 返回结果处理
         if ($resultSet) {
+            if ($this->connection->getConfig('pk_convert_id')) {
+                array_walk($resultSet, [$this, 'convertObjectID']);
+            }
             // 数据列表读取后的处理
             if (!empty($this->model)) {
                 // 生成模型对象
@@ -1335,6 +1348,18 @@ class Query
             throw new DbException('Data not Found', $options, $sql);
         }
         return $resultSet;
+    }
+
+    /**
+     * ObjectID处理
+     * @access public
+     * @param array     $data
+     * @return void
+     */
+    private function convertObjectID(&$data)
+    {
+        $data['id'] = $data['_id']->__toString();
+        unset($data['_id']);
     }
 
     /**
@@ -1396,6 +1421,10 @@ class Query
         // 数据处理
         if (!empty($result[0])) {
             $data = $result[0];
+            if ($this->connection->getConfig('pk_convert_id')) {
+                $this->convertObjectID($data);
+            }
+
             if (!empty($this->model)) {
                 // 返回模型对象
                 $model = $this->model;
@@ -1512,7 +1541,7 @@ class Query
         }
 
         $modifiers = empty($options['modifiers']) ? [] : $options['modifiers'];
-        if(isset($options['comment'])) {
+        if (isset($options['comment'])) {
             $modifiers['$comment'] = $options['comment'];
         }
 
@@ -1533,7 +1562,7 @@ class Query
         }
 
         if (!isset($options['limit'])) {
-            $options['limit']  = 0;
+            $options['limit'] = 0;
         }
 
         foreach (['master', 'fetch_class'] as $name) {
