@@ -23,6 +23,7 @@ use MongoDB\Driver\Manager;
 use MongoDB\Driver\Query as MongoQuery;
 use MongoDB\Driver\ReadPreference;
 use MongoDB\Driver\WriteConcern;
+use think\Collection;
 use think\Db;
 use think\Debug;
 use think\Exception;
@@ -381,6 +382,15 @@ class Connection
                 break;
         }
         $this->options = $options;
+    }
+
+    /**
+     * 获取执行的指令
+     * @access public
+     * @return string
+     */
+    public function getQueryStr(){
+        return $this->queryStr
     }
 
     /**

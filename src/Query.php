@@ -23,6 +23,8 @@ use think\Cache;
 use think\Collection;
 use think\Config;
 use think\Db;
+use think\db\exception\DataNotFoundException;
+use think\db\exception\ModelNotFoundException;
 use think\Exception;
 use think\exception\DbException;
 use think\Loader;
@@ -1345,7 +1347,11 @@ class Query
                 }
             }
         } elseif (!empty($options['fail'])) {
-            throw new DbException('Data not Found', $options, $sql);
+            if (!empty($this->model)) {
+                throw new ModelNotFoundException('model data Not Found:' . $this->model, $this->model, $options);
+            } else {
+                throw new DataNotFoundException('table data not Found:' . $options['table'], $options['table'], $options);
+            }
         }
         return $resultSet;
     }
@@ -1440,7 +1446,11 @@ class Query
                 }
             }
         } elseif (!empty($options['fail'])) {
-            throw new DbException('Data not Found', $options, $sql);
+            if (!empty($this->model)) {
+                throw new ModelNotFoundException('model data Not Found:' . $this->model, $this->model, $options);
+            } else {
+                throw new DataNotFoundException('table data not Found:' . $options['table'], $options['table'], $options);
+            }
         } else {
             $data = null;
         }
