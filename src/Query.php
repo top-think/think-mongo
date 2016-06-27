@@ -1255,8 +1255,7 @@ class Query
     /**
      * 删除记录
      * @access public
-     * @param array $data 表达式
-     * @param bool $force 是否强制删除
+     * @param array $data 表达式 true 表示强制删除
      * @return int
      * @throws Exception
      * @throws AuthenticationException
@@ -1265,7 +1264,7 @@ class Query
      * @throws RuntimeException
      * @throws BulkWriteException
      */
-    public function delete($data = [], $force = false)
+    public function delete($data = [])
     {
         // 分析查询表达式
         $options = $this->parseExpress();
@@ -1275,7 +1274,7 @@ class Query
             $this->parsePkWhere($data, $options);
         }
 
-        if (!$force && empty($options['where'])) {
+        if (true !== $data && empty($options['where'])) {
             // 如果不是强制删除且条件为空 不进行删除操作
             throw new Exception('delete without condition');
         }
@@ -1311,16 +1310,13 @@ class Query
         // 分析查询表达式
         $options = $this->parseExpress();
 
-        if (false === $data) {
-            // 用于子查询 不查询只返回SQL
-            $options['fetch_sql'] = true;
-        } elseif (!empty($data)) {
+        if (!empty($data)) {
             // 主键条件分析
             $this->parsePkWhere($data, $options);
         }
 
         $resultSet = false;
-        if (empty($options['fetch_sql']) && !empty($options['cache'])) {
+        if (!empty($options['cache'])) {
             // 判断查询缓存
             $cache     = $options['cache'];
             $key       = is_string($cache['key']) ? $cache['key'] : md5(serialize($options));
@@ -1333,10 +1329,6 @@ class Query
             $readPreference = isset($options['readPreference']) ? $options['readPreference'] : null;
             $resultSet      = $this->query($options['table'], $query, $readPreference, $options['fetch_class'], $options['typeMap']);
 
-            if (is_string($resultSet)) {
-                // 返回SQL
-                return $resultSet;
-            }
             if ($resultSet instanceof Cursor) {
                 // 返回MongoDB\Driver\Cursor对象
                 return $resultSet;
@@ -1351,7 +1343,9 @@ class Query
         // 返回结果处理
         if ($resultSet) {
             if ($this->connection->getConfig('pk_convert_id')) {
-                array_walk($resultSet, [$this, 'convertObjectID']);
+                foreach ($resultSet as &$result) {
+                    $this->convertObjectID($result);
+                }
             }
             // 数据列表读取后的处理
             if (!empty($this->model)) {
@@ -1424,7 +1418,7 @@ class Query
 
         $options['limit'] = 1;
         $result           = false;
-        if (empty($options['fetch_sql']) && !empty($options['cache'])) {
+        if (!empty($options['cache'])) {
             // 判断查询缓存
             $cache  = $options['cache'];
             $key    = is_string($cache['key']) ? $cache['key'] : md5(serialize($options));
@@ -1436,11 +1430,6 @@ class Query
             // 执行查询
             $readPreference = isset($options['readPreference']) ? $options['readPreference'] : null;
             $result         = $this->query($options['table'], $query, $readPreference, $options['fetch_class'], $options['typeMap']);
-
-            if (is_string($result)) {
-                // 返回SQL
-                return $result;
-            }
 
             if ($result instanceof Cursor) {
                 // 返回MongoDB\Driver\Cursor对象

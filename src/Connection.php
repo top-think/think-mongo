@@ -389,8 +389,9 @@ class Connection
      * @access public
      * @return string
      */
-    public function getQueryStr(){
-        return $this->queryStr
+    public function getQueryStr()
+    {
+        return $this->queryStr;
     }
 
     /**
