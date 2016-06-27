@@ -1269,7 +1269,7 @@ class Query
         // 分析查询表达式
         $options = $this->parseExpress();
 
-        if (!empty($data)) {
+        if (!empty($data) && true !== $data) {
             // AR模式分析主键条件
             $this->parsePkWhere($data, $options);
         }
@@ -1342,11 +1342,6 @@ class Query
 
         // 返回结果处理
         if ($resultSet) {
-            if ($this->connection->getConfig('pk_convert_id')) {
-                foreach ($resultSet as &$result) {
-                    $this->convertObjectID($result);
-                }
-            }
             // 数据列表读取后的处理
             if (!empty($this->model)) {
                 // 生成模型对象
@@ -1374,18 +1369,6 @@ class Query
             }
         }
         return $resultSet;
-    }
-
-    /**
-     * ObjectID处理
-     * @access public
-     * @param array     $data
-     * @return void
-     */
-    private function convertObjectID(&$data)
-    {
-        $data['id'] = $data['_id']->__toString();
-        unset($data['_id']);
     }
 
     /**
@@ -1445,10 +1428,6 @@ class Query
         // 数据处理
         if (!empty($result[0])) {
             $data = $result[0];
-            if ($this->connection->getConfig('pk_convert_id')) {
-                $this->convertObjectID($data);
-            }
-
             if (!empty($this->model)) {
                 // 返回模型对象
                 $model = $this->model;

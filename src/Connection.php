@@ -314,7 +314,13 @@ class Connection
         $this->cursor->setTypeMap($typeMap);
 
         // 获取数据集
-        $result        = $this->cursor->toArray();
+        $result = $this->cursor->toArray();
+        if ($this->getConfig('pk_convert_id')) {
+            // 转换ObjectID 字段
+            foreach ($result as &$data) {
+                $this->convertObjectID($data);
+            }
+        }
         $this->numRows = count($result);
         if (!empty($class)) {
             // 返回指定数据集对象类
@@ -324,6 +330,18 @@ class Connection
             $result = new Collection($result);
         }
         return $result;
+    }
+
+    /**
+     * ObjectID处理
+     * @access public
+     * @param array     $data
+     * @return void
+     */
+    private function convertObjectID(&$data)
+    {
+        $data['id'] = $data['_id']->__toString();
+        unset($data['_id']);
     }
 
     /**
