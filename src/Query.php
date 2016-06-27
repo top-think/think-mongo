@@ -1116,7 +1116,9 @@ class Query
     protected function parsePkWhere($data, &$options)
     {
         $pk = isset($options['pk']) ? $options['pk'] : $this->getPk();
-
+        if ('_id' == $pk && $this->connection->getConfig('pk_convert_id')) {
+            $pk = 'id';
+        }
         if (is_string($pk)) {
             // 根据主键查询
             if (is_array($data)) {
@@ -1127,10 +1129,10 @@ class Query
         }
 
         if (!empty($where)) {
-            if (isset($options['where'])) {
-                $options['where'] = array_merge($options['where'], $where);
+            if (isset($options['where']['$and'])) {
+                $options['where']['$and'] = array_merge($options['where']['$and'], $where);
             } else {
-                $options['where'] = $where;
+                $options['where']['$and'] = $where;
             }
         }
         return;
@@ -1299,18 +1301,18 @@ class Query
      * @throws ConnectionException
      * @throws RuntimeException
      */
-    public function select($data = [])
+    public function select($data = null)
     {
         if ($data instanceof Query) {
             return $data->select();
         } elseif ($data instanceof \Closure) {
             call_user_func_array($data, [ & $this]);
-            $data = [];
+            $data = null;
         }
         // 分析查询表达式
         $options = $this->parseExpress();
 
-        if (!empty($data)) {
+        if (!is_null($data)) {
             // 主键条件分析
             $this->parsePkWhere($data, $options);
         }
@@ -1383,18 +1385,18 @@ class Query
      * @throws ConnectionException
      * @throws RuntimeException
      */
-    public function find($data = [])
+    public function find($data = null)
     {
         if ($data instanceof Query) {
             return $data->find();
         } elseif ($data instanceof \Closure) {
             call_user_func_array($data, [ & $this]);
-            $data = [];
+            $data = null;
         }
         // 分析查询表达式
         $options = $this->parseExpress();
 
-        if (!empty($data) || 0 == $data) {
+        if (!is_null($data)) {
             // AR模式分析主键条件
             $this->parsePkWhere($data, $options);
         }
