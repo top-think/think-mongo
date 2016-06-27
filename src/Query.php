@@ -15,7 +15,11 @@ use MongoDB\BSON\ObjectID;
 use MongoDB\Driver\BulkWrite;
 use MongoDB\Driver\Command;
 use MongoDB\Driver\Cursor;
-use MongoDB\Driver\Exception as MongoException;
+use MongoDB\Driver\Exception\AuthenticationException;
+use MongoDB\Driver\Exception\BulkWriteException;
+use MongoDB\Driver\Exception\ConnectionException;
+use MongoDB\Driver\Exception\InvalidArgumentException;
+use MongoDB\Driver\Exception\RuntimeException;
 use MongoDB\Driver\Query as MongoQuery;
 use MongoDB\Driver\ReadPreference;
 use MongoDB\Driver\WriteConcern;
@@ -182,7 +186,10 @@ class Query
      * @param bool|string       $class 指定返回的数据集对象
      * @param string|array      $typeMap 指定返回的typeMap
      * @return mixed
-     * @throws MongoException
+     * @throws AuthenticationException
+     * @throws InvalidArgumentException
+     * @throws ConnectionException
+     * @throws RuntimeException
      */
     public function query($namespace, MongoQuery $query, ReadPreference $readPreference = null, $class = false, $typeMap = null)
     {
@@ -198,7 +205,10 @@ class Query
      * @param bool|string       $class 指定返回的数据集对象
      * @param string|array      $typeMap 指定返回的typeMap
      * @return mixed
-     * @throws MongoException
+     * @throws AuthenticationException
+     * @throws InvalidArgumentException
+     * @throws ConnectionException
+     * @throws RuntimeException
      */
     public function command(Command $command, $dbName = '', ReadPreference $readPreference = null, $class = false, $typeMap = null)
     {
@@ -212,7 +222,11 @@ class Query
      * @param BulkWrite     $bulk
      * @param WriteConcern  $writeConcern
      * @return int
-     * @throws MongoException
+     * @throws AuthenticationException
+     * @throws InvalidArgumentException
+     * @throws ConnectionException
+     * @throws RuntimeException
+     * @throws BulkWriteException
      */
     public function execute($namespace, BulkWrite $bulk, WriteConcern $writeConcern = null)
     {
@@ -1127,6 +1141,11 @@ class Query
      * @access public
      * @param mixed $data 数据
      * @return WriteResult
+     * @throws AuthenticationException
+     * @throws InvalidArgumentException
+     * @throws ConnectionException
+     * @throws RuntimeException
+     * @throws BulkWriteException
      */
     public function insert(array $data)
     {
@@ -1135,15 +1154,11 @@ class Query
         }
         // 分析查询表达式
         $options = $this->parseExpress();
-        try {
-            // 生成bulk对象
-            $bulk         = $this->builder->insert($data, $options);
-            $writeConcern = isset($options['writeConcern']) ? $options['writeConcern'] : null;
-            $writeResult  = $this->execute($options['table'], $bulk, $writeConcern);
-            return $writeResult->getInsertedCount();
-        } catch (MongoException $e) {
-            throw new Exception($e->getMessage());
-        }
+        // 生成bulk对象
+        $bulk         = $this->builder->insert($data, $options);
+        $writeConcern = isset($options['writeConcern']) ? $options['writeConcern'] : null;
+        $writeResult  = $this->execute($options['table'], $bulk, $writeConcern);
+        return $writeResult->getInsertedCount();
     }
 
     /**
@@ -1151,6 +1166,11 @@ class Query
      * @access public
      * @param mixed $data 数据
      * @return integer
+     * @throws AuthenticationException
+     * @throws InvalidArgumentException
+     * @throws ConnectionException
+     * @throws RuntimeException
+     * @throws BulkWriteException
      */
     public function insertGetId(array $data)
     {
@@ -1163,6 +1183,11 @@ class Query
      * @access public
      * @param mixed $dataSet 数据集
      * @return integer
+     * @throws AuthenticationException
+     * @throws InvalidArgumentException
+     * @throws ConnectionException
+     * @throws RuntimeException
+     * @throws BulkWriteException
      */
     public function insertAll(array $dataSet)
     {
@@ -1172,15 +1197,11 @@ class Query
             return false;
         }
 
-        try {
-            // 生成bulkWrite对象
-            $bulk         = $this->builder->insertAll($dataSet, $options);
-            $writeConcern = isset($options['writeConcern']) ? $options['writeConcern'] : null;
-            $writeResult  = $this->execute($options['table'], $bulk, $writeConcern);
-            return $writeResult->getInsertedCount();
-        } catch (MongoException $e) {
-            throw new Exception($e->getMessage());
-        }
+        // 生成bulkWrite对象
+        $bulk         = $this->builder->insertAll($dataSet, $options);
+        $writeConcern = isset($options['writeConcern']) ? $options['writeConcern'] : null;
+        $writeResult  = $this->execute($options['table'], $bulk, $writeConcern);
+        return $writeResult->getInsertedCount();
     }
 
     /**
@@ -1189,7 +1210,11 @@ class Query
      * @param mixed $data 数据
      * @return int
      * @throws Exception
-     * @throws MongoException
+     * @throws AuthenticationException
+     * @throws InvalidArgumentException
+     * @throws ConnectionException
+     * @throws RuntimeException
+     * @throws BulkWriteException
      */
     public function update(array $data)
     {
@@ -1220,26 +1245,27 @@ class Query
             }
         }
 
-        try {
-            // 生成bulkWrite对象
-            $bulk         = $this->builder->update($data, $options);
-            $writeConcern = isset($options['writeConcern']) ? $options['writeConcern'] : null;
-            $writeResult  = $this->execute($options['table'], $bulk, $writeConcern);
-            return $writeResult->getModifiedCount();
-        } catch (MongoException $e) {
-            throw new Exception($e->getMessage());
-        }
+        // 生成bulkWrite对象
+        $bulk         = $this->builder->update($data, $options);
+        $writeConcern = isset($options['writeConcern']) ? $options['writeConcern'] : null;
+        $writeResult  = $this->execute($options['table'], $bulk, $writeConcern);
+        return $writeResult->getModifiedCount();
     }
 
     /**
      * 删除记录
      * @access public
      * @param array $data 表达式
+     * @param bool $force 是否强制删除
      * @return int
      * @throws Exception
-     * @throws MongoException
+     * @throws AuthenticationException
+     * @throws InvalidArgumentException
+     * @throws ConnectionException
+     * @throws RuntimeException
+     * @throws BulkWriteException
      */
-    public function delete($data = [])
+    public function delete($data = [], $force = false)
     {
         // 分析查询表达式
         $options = $this->parseExpress();
@@ -1249,20 +1275,17 @@ class Query
             $this->parsePkWhere($data, $options);
         }
 
-        if (empty($options['where'])) {
-            // 如果条件为空 不进行删除操作 除非设置 1=1
+        if (!$force && empty($options['where'])) {
+            // 如果不是强制删除且条件为空 不进行删除操作
             throw new Exception('delete without condition');
         }
-        try {
-            // 生成bulkWrite对象
-            $bulk         = $this->builder->delete($options);
-            $writeConcern = isset($options['writeConcern']) ? $options['writeConcern'] : null;
-            // 执行操作
-            $writeResult = $this->execute($options['table'], $bulk, $writeConcern);
-            return $writeResult->getDeletedCount();
-        } catch (MongoException $e) {
-            throw new Exception($e->getMessage());
-        }
+
+        // 生成bulkWrite对象
+        $bulk         = $this->builder->delete($options);
+        $writeConcern = isset($options['writeConcern']) ? $options['writeConcern'] : null;
+        // 执行操作
+        $writeResult = $this->execute($options['table'], $bulk, $writeConcern);
+        return $writeResult->getDeletedCount();
     }
 
     /**
@@ -1270,9 +1293,12 @@ class Query
      * @access public
      * @param array|string|Query|\Closure $data
      * @return Collection|false|Cursor|string
-     * @throws DbException
-     * @throws Exception
-     * @throws MongoException
+     * @throws ModelNotFoundException
+     * @throws DataNotFoundException
+     * @throws AuthenticationException
+     * @throws InvalidArgumentException
+     * @throws ConnectionException
+     * @throws RuntimeException
      */
     public function select($data = [])
     {
@@ -1373,9 +1399,12 @@ class Query
      * @access public
      * @param array|string|Query|\Closure $data
      * @return array|false|Cursor|string|Model
-     * @throws DbException
-     * @throws Exception
-     * @throws MongoException
+     * @throws ModelNotFoundException
+     * @throws DataNotFoundException
+     * @throws AuthenticationException
+     * @throws InvalidArgumentException
+     * @throws ConnectionException
+     * @throws RuntimeException
      */
     public function find($data = [])
     {
