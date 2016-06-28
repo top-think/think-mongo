@@ -588,9 +588,7 @@ class Query
             return;
         }
         $where = [];
-        if (is_string($field) && preg_match('/[,=\>\<\'\"\(\s]/', $field)) {
-            $where[] = ['exp', $field];
-        } elseif (is_null($op) && is_null($condition)) {
+        if (is_null($op) && is_null($condition)) {
             if (is_array($field)) {
                 // 数组批量查询
                 $where = $field;
@@ -1266,12 +1264,12 @@ class Query
      * @throws RuntimeException
      * @throws BulkWriteException
      */
-    public function delete($data = [])
+    public function delete($data = null)
     {
         // 分析查询表达式
         $options = $this->parseExpress();
 
-        if (!empty($data) && true !== $data) {
+        if (!is_null($data) && true !== $data) {
             // AR模式分析主键条件
             $this->parsePkWhere($data, $options);
         }
