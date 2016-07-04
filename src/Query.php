@@ -1377,11 +1377,7 @@ class Query
                 }
             }
         } elseif (!empty($options['fail'])) {
-            if (!empty($this->model)) {
-                throw new ModelNotFoundException('model data Not Found:' . $this->model, $this->model, $options);
-            } else {
-                throw new DataNotFoundException('table data not Found:' . $options['table'], $options['table'], $options);
-            }
+            $this->throwNotFound($options);
         }
         return $resultSet;
     }
@@ -1462,15 +1458,27 @@ class Query
                 }
             }
         } elseif (!empty($options['fail'])) {
-            if (!empty($this->model)) {
-                throw new ModelNotFoundException('model data Not Found:' . $this->model, $this->model, $options);
-            } else {
-                throw new DataNotFoundException('table data not Found:' . $options['table'], $options['table'], $options);
-            }
+            $this->throwNotFound($options);
         } else {
             $data = null;
         }
         return $data;
+    }
+
+    /**
+     * 查询失败 抛出异常
+     * @access public
+     * @param array $options 查询参数
+     * @throws ModelNotFoundException
+     * @throws DataNotFoundException
+     */
+    protected function throwNotFound($options = [])
+    {
+        if (!empty($this->model)) {
+            throw new ModelNotFoundException('model data Not Found:' . $this->model, $this->model, $options);
+        } else {
+            throw new DataNotFoundException('table data not Found:' . $options['table'], $options['table'], $options);
+        }
     }
 
     /**
