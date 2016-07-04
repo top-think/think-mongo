@@ -1455,6 +1455,40 @@ class Query
     }
 
     /**
+     * 查找多条记录 如果不存在则抛出异常
+     * @access public
+     * @param array|string|Query|\Closure $data
+     * @return array|\PDOStatement|string|Model
+     * @throws ModelNotFoundException
+     * @throws DataNotFoundException
+     * @throws AuthenticationException
+     * @throws InvalidArgumentException
+     * @throws ConnectionException
+     * @throws RuntimeException
+     */
+    public function selectOrFail($data = null)
+    {
+        return $this->failException(true)->select($data);
+    }
+
+    /**
+     * 查找单条记录 如果不存在则抛出异常
+     * @access public
+     * @param array|string|Query|\Closure $data
+     * @return array|\PDOStatement|string|Model
+     * @throws ModelNotFoundException
+     * @throws DataNotFoundException
+     * @throws AuthenticationException
+     * @throws InvalidArgumentException
+     * @throws ConnectionException
+     * @throws RuntimeException
+     */
+    public function findOrFail($data = null)
+    {
+        return $this->failException(true)->find($data);
+    }
+
+    /**
      * 分批数据返回处理
      * @access public
      * @param integer   $count 每次处理的数据数量
