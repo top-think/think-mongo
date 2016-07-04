@@ -1224,6 +1224,7 @@ class Query
             // 如果存在主键数据 则自动作为更新条件
             if (is_string($pk) && isset($data[$pk])) {
                 $where[$pk] = $data[$pk];
+                $key        = 'mongo:' . $options['table'] . '|' . $data[$pk];
                 unset($data[$pk]);
             } elseif (is_array($pk)) {
                 // 增加复合主键支持
@@ -1249,6 +1250,11 @@ class Query
         $bulk         = $this->builder->update($data, $options);
         $writeConcern = isset($options['writeConcern']) ? $options['writeConcern'] : null;
         $writeResult  = $this->execute($options['table'], $bulk, $writeConcern);
+        // 检测缓存
+        if (isset($key) && Cache::get($key)) {
+            // 删除缓存
+            Cache::rm($key);
+        }
         return $writeResult->getModifiedCount();
     }
 
@@ -1270,6 +1276,10 @@ class Query
         $options = $this->parseExpress();
 
         if (!is_null($data) && true !== $data) {
+            if (!is_array($data)) {
+                // 缓存标识
+                $key = 'mongo:' . $options['table'] . '|' . $data;
+            }
             // AR模式分析主键条件
             $this->parsePkWhere($data, $options);
         }
@@ -1284,6 +1294,11 @@ class Query
         $writeConcern = isset($options['writeConcern']) ? $options['writeConcern'] : null;
         // 执行操作
         $writeResult = $this->execute($options['table'], $bulk, $writeConcern);
+        // 检测缓存
+        if (isset($key) && Cache::get($key)) {
+            // 删除缓存
+            Cache::rm($key);
+        }
         return $writeResult->getDeletedCount();
     }
 
@@ -1403,8 +1418,12 @@ class Query
         $result           = false;
         if (!empty($options['cache'])) {
             // 判断查询缓存
-            $cache  = $options['cache'];
-            $key    = is_string($cache['key']) ? $cache['key'] : md5(serialize($options));
+            $cache = $options['cache'];
+            if (true === $cache['key'] && !is_null($data) && !is_array($data)) {
+                $key = 'mongo:' . $options['table'] . '|' . $data;
+            } else {
+                $key = is_string($cache['key']) ? $cache['key'] : md5(serialize($options));
+            }
             $result = Cache::get($key);
         }
         if (!$result) {
