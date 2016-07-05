@@ -145,6 +145,9 @@ class Connection
             if (isset($config['resultset_type'])) {
                 $this->resultSetType = $config['resultset_type'];
             }
+            if ($config['pk_convert_id'] && '_id' == $config['pk']) {
+                $this->config['pk'] = 'id';
+            }
             $host                  = 'mongodb://' . ($config['username'] ? "{$config['username']}" : '') . ($config['password'] ? ":{$config['password']}@" : '') . $config['hostname'] . ($config['hostport'] ? ":{$config['hostport']}" : '') . '/' . ($config['database'] ? "{$config['database']}" : '');
             $this->links[$linkNum] = new Manager($host, $this->config['params']);
         }

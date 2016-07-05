@@ -1114,9 +1114,7 @@ class Query
     protected function parsePkWhere($data, &$options)
     {
         $pk = isset($options['pk']) ? $options['pk'] : $this->getPk();
-        if ('_id' == $pk && $this->connection->getConfig('pk_convert_id')) {
-            $pk = 'id';
-        }
+
         if (is_string($pk)) {
             // 根据主键查询
             if (is_array($data)) {
