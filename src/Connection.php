@@ -343,8 +343,10 @@ class Connection
      */
     private function convertObjectID(&$data)
     {
-        $data['id'] = $data['_id']->__toString();
-        unset($data['_id']);
+        if (isset($data['_id'])) {
+            $data['id'] = $data['_id']->__toString();
+            unset($data['_id']);
+        }
     }
 
     /**
