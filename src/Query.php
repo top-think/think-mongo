@@ -1445,7 +1445,7 @@ class Query
                 // 返回模型对象
                 $model = $this->model;
                 $data  = new $model($data);
-                $data->isUpdate(true, isset($options['where']) ? $options['where'] : null);
+                $data->isUpdate(true, isset($options['where']['$and']) ? $options['where']['$and'] : null);
                 // 关联查询
                 if (!empty($options['relation'])) {
                     $data->relationQuery($options['relation']);
