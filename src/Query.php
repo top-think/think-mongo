@@ -461,7 +461,7 @@ class Query
                 return true; // 等待下次写入
             }
         }
-        return $this->setField($field, ['inc', '+' . $step]);
+        return $this->setField($field, ['$inc', '+' . $step]);
     }
 
     /**
@@ -488,7 +488,7 @@ class Query
                 return true; // 等待下次写入
             }
         }
-        return $this->setField($field, ['inc', '-' . $step]);
+        return $this->setField($field, ['$inc', '-' . $step]);
     }
 
     /**
