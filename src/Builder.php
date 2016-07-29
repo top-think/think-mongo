@@ -118,24 +118,8 @@ class Builder
         $result = [];
         foreach ($data as $key => $val) {
             $item = $this->parseKey($key);
-            if (is_array($val)) {
-                switch ($val[0]) {
-                    case 'inc':
-                        $result['$inc'][$item] = (int) $val[1];
-                        break;
-                    case 'set':
-                    case 'unset':
-                    case 'push':
-                    case 'pushall':
-                    case 'addtoset':
-                    case 'pop':
-                    case 'pull':
-                    case 'pullall':
-                        $result['$' . $val[0]][$item] = $this->parseValue($val[1], $key);
-                        break;
-                    default:
-                        $result['$set'][$item] = $this->parseValue($val, $key);
-                }
+            if (is_array($val) && isset($val[0]) && in_array($val[0], ['$inc', '$set', '$unset', '$push', '$pushall', '$addtoset', '$pop', '$pull', '$pullall'])) {
+                $result[$val[0]][$item] = $this->parseValue($val[1], $key);
             } else {
                 $result['$set'][$item] = $this->parseValue($val, $key);
             }
