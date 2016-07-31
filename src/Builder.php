@@ -226,16 +226,16 @@ class Builder
             $query[$key] = ['$type' => intval($value)];
         } elseif ('exp' == $exp) {
             // 表达式查询
-            $query['$where'] = new Javascript($value);
+            $query['$where'] = $value instanceof Javascript ? $value : new Javascript($value);
         } elseif ('like' == $exp) {
             // 模糊查询 采用正则方式
-            $query[$key] = new Regex("/" . $value . "/");
+            $query[$key] = $value instanceof Regex ? $value : new Regex($value, 'i');
         } elseif (in_array($exp, ['nin', 'in'])) {
             // IN 查询
             $value       = is_array($value) ? $value : explode(',', $value);
             $query[$key] = ['$' . $exp, $value];
         } elseif ('regex' == $exp) {
-            $query[$key] = new Regex($value);
+            $query[$key] = $value instanceof Regex ? $value : new Regex($value, 'i');
         } elseif ('< time' == $exp) {
             $query[$key] = ['$lt', $this->parseDateTime($value, $field)];
         } elseif ('> time' == $exp) {
