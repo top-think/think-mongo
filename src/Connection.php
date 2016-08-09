@@ -150,8 +150,15 @@ class Connection
             if ($config['pk_convert_id'] && '_id' == $config['pk']) {
                 $this->config['pk'] = 'id';
             }
-            $host                  = 'mongodb://' . ($config['username'] ? "{$config['username']}" : '') . ($config['password'] ? ":{$config['password']}@" : '') . $config['hostname'] . ($config['hostport'] ? ":{$config['hostport']}" : '') . '/' . ($config['database'] ? "{$config['database']}" : '');
+            $host = 'mongodb://' . ($config['username'] ? "{$config['username']}" : '') . ($config['password'] ? ":{$config['password']}@" : '') . $config['hostname'] . ($config['hostport'] ? ":{$config['hostport']}" : '') . '/' . ($config['database'] ? "{$config['database']}" : '');
+            if ($config['debug']) {
+                $startTime = microtime(true);
+            }
             $this->links[$linkNum] = new Manager($host, $this->config['params']);
+            if ($config['debug']) {
+                // 记录数据库连接信息
+                Log::record('[ DB ] CONNECT:[ UseTime:' . number_format(microtime(true) - $startTime, 6) . 's ] ' . $config['dsn'], 'sql');
+            }
         }
         return $this->links[$linkNum];
     }
@@ -448,7 +455,7 @@ class Connection
             }
         } else {
             // 未注册监听则记录到日志中
-            Log::record('[ Mongo ] ' . $this->queryStr . ' [ RunTime:' . $runtime . 's ]', 'sql');
+            Log::record('[ Mongo ] ' . $sql . ' [ RunTime:' . $runtime . 's ]', 'sql');
         }
     }
 
