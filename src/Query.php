@@ -703,9 +703,7 @@ class Query
             $results = $this->limit(($page - 1) * $listRows, $listRows + 1)->select();
             $total   = null;
         }
-
-        $paginator = new $class($results, $listRows, $page, $simple, $total, $config);
-        return $paginator->items();
+        return $class::make($results, $listRows, $page, $total, $simple, $config);
     }
 
     /**
