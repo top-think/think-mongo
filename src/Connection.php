@@ -138,6 +138,8 @@ class Connection
         if (!isset($this->links[$linkNum])) {
             if (empty($config)) {
                 $config = $this->config;
+            } else {
+                $config = array_merge($this->config, $config);
             }
             $this->dbName  = $config['database'];
             $this->typeMap = $config['type_map'];
