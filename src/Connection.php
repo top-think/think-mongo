@@ -268,7 +268,7 @@ class Connection
         }
         if (!empty($this->queryStr)) {
             // 记录执行指令
-            $this->queryStr = $namespace . '.' . $this->queryStr;
+            $this->queryStr = 'db' . strstr($namespace, '.') . '.' . $this->queryStr;
         }
         $this->debug(true);
         $this->cursor = $this->mongo->executeQuery($namespace, $query, $readPreference);
@@ -298,7 +298,7 @@ class Connection
         $this->debug(true);
         $dbName = $dbName ?: $this->dbName;
         if (!empty($this->queryStr)) {
-            $this->queryStr = $dbName . '.' . $this->queryStr;
+            $this->queryStr = 'db.' . $dbName . '.' . $this->queryStr;
         }
         $this->cursor = $this->mongo->executeCommand($dbName, $command, $readPreference);
         $this->debug(false);
@@ -381,7 +381,7 @@ class Connection
         }
         if (!empty($this->queryStr)) {
             // 记录执行指令
-            $this->queryStr = $namespace . '.' . $this->queryStr;
+            $this->queryStr = 'db' . strstr($namespace, '.') . '.' . $this->queryStr;
         }
         $this->debug(true);
         $writeResult = $this->mongo->executeBulkWrite($namespace, $bulk, $writeConcern);
@@ -391,7 +391,7 @@ class Connection
     }
 
     /**
-     * 数据库日志记录
+     * 数据库日志记录（仅供参考）
      * @access public
      * @param string $type 类型
      * @param mixed  $data 数据
@@ -402,6 +402,15 @@ class Connection
     {
         switch (strtolower($type)) {
             case 'find':
+                $this->queryStr = $type . '(' . ($data ? json_encode($data) : '') . ')';
+                if (isset($options['sort'])) {
+                    $this->queryStr .= '.sort(' . json_encode($options['sort']) . ')';
+                }
+                if (isset($options['limit'])) {
+                    $this->queryStr .= '.limit(' . $options['limit'] . ')';
+                }
+                $this->queryStr .= ';';
+                break;
             case 'insert':
             case 'remove':
                 $this->queryStr = $type . '(' . ($data ? json_encode($data) : '') . ');';
