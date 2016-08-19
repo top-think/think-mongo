@@ -233,13 +233,13 @@ class Builder
         } elseif (in_array($exp, ['nin', 'in'])) {
             // IN 查询
             $value       = is_array($value) ? $value : explode(',', $value);
-            $query[$key] = ['$' . $exp, $value];
+            $query[$key] = ['$' . $exp => $value];
         } elseif ('regex' == $exp) {
             $query[$key] = $value instanceof Regex ? $value : new Regex($value, 'i');
         } elseif ('< time' == $exp) {
-            $query[$key] = ['$lt', $this->parseDateTime($value, $field)];
+            $query[$key] = ['$lt' => $this->parseDateTime($value, $field)];
         } elseif ('> time' == $exp) {
-            $query[$key] = ['$gt', $this->parseDateTime($value, $field)];
+            $query[$key] = ['$gt' => $this->parseDateTime($value, $field)];
         } elseif ('between time' == $exp) {
             // 区间查询
             $value       = is_array($value) ? $value : explode(',', $value);
