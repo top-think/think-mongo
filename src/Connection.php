@@ -266,7 +266,7 @@ class Connection
         if (false === strpos($namespace, '.')) {
             $namespace = $this->dbName . '.' . $namespace;
         }
-        if (!empty($this->queryStr)) {
+        if ($this->config['debug'] && !empty($this->queryStr)) {
             // 记录执行指令
             $this->queryStr = 'db' . strstr($namespace, '.') . '.' . $this->queryStr;
         }
@@ -297,7 +297,7 @@ class Connection
 
         $this->debug(true);
         $dbName = $dbName ?: $this->dbName;
-        if (!empty($this->queryStr)) {
+        if ($this->config['debug'] && !empty($this->queryStr)) {
             $this->queryStr = 'db.' . $dbName . '.' . $this->queryStr;
         }
         $this->cursor = $this->mongo->executeCommand($dbName, $command, $readPreference);
@@ -379,7 +379,7 @@ class Connection
         if (false === strpos($namespace, '.')) {
             $namespace = $this->dbName . '.' . $namespace;
         }
-        if (!empty($this->queryStr)) {
+        if ($this->config['debug'] && !empty($this->queryStr)) {
             // 记录执行指令
             $this->queryStr = 'db' . strstr($namespace, '.') . '.' . $this->queryStr;
         }
@@ -400,6 +400,16 @@ class Connection
      */
     public function log($type, $data, $options = [])
     {
+        if (!$this->config['debug']) {
+            return;
+        }
+        if (is_array($data)) {
+            array_walk_recursive($data, function (&$value) {
+                if ($value instanceof ObjectID) {
+                    $value = $value->__toString();
+                }
+            });
+        }
         switch (strtolower($type)) {
             case 'find':
                 $this->queryStr = $type . '(' . ($data ? json_encode($data) : '') . ')';
@@ -472,9 +482,10 @@ class Connection
      * 数据库调试 记录当前SQL及分析性能
      * @access protected
      * @param boolean $start 调试开始标记 true 开始 false 结束
+     * @param string  $sql 执行的SQL语句 留空自动获取
      * @return void
      */
-    protected function debug($start)
+    protected function debug($start, $sql = '')
     {
         if (!empty($this->config['debug'])) {
             // 开启数据库调试模式
@@ -484,8 +495,9 @@ class Connection
                 // 记录操作结束时间
                 Debug::remark('queryEndTime', 'time');
                 $runtime = Debug::getRangeTime('queryStartTime', 'queryEndTime');
+                $sql     = $sql ?: $this->queryStr;
                 // SQL监听
-                $this->trigger($this->queryStr, $runtime, $this->options);
+                $this->trigger($sql, $runtime, $this->options);
             }
         }
     }
