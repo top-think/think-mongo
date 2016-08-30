@@ -49,10 +49,18 @@ class Query
     protected $table = '';
     // 当前数据表名称（不含前缀）
     protected $name = '';
+    // 当前数据表主键
+    protected $pk;
+    // 当前表字段类型信息
+    protected $fieldType = [];
+    // 当前允许的字段列表
+    protected $allowField = [];
     // 当前数据表前缀
     protected $prefix = '';
     // 查询参数
     protected $options = [];
+    // 数据表信息
+    protected static $info = [];
 
     /**
      * 架构函数
@@ -158,6 +166,47 @@ class Query
             $tableName = $this->table;
         }
         return $tableName;
+    }
+
+    /**
+     * 设置数据表字段
+     * @access public
+     * @param string|array $field 字段信息
+     * @return $this
+     */
+    public function allowField($field)
+    {
+        if (true === $field) {
+            $field = $this->getTableInfo('', 'fields');
+        } elseif (is_string($field)) {
+            $field = explode(',', $field);
+        }
+        $this->allowField = $field;
+        return $this;
+    }
+
+    /**
+     * 设置字段类型
+     * @access public
+     * @param array $fieldType 字段类型信息
+     * @return $this
+     */
+    public function setFieldType($fieldType = [])
+    {
+        $this->fieldType = $fieldType;
+        return $this;
+    }
+
+    /**
+     * 指定数据表主键
+     * @access public
+     * @param string $pk 主键
+     * @return $this
+     */
+    public function pk($pk)
+    {
+        $this->pk = $pk;
+        return $this;
     }
 
     /**
@@ -954,18 +1003,6 @@ class Query
     }
 
     /**
-     * 设置当前查询表的主键
-     * @access public
-     * @param bool $slaveOk
-     * @return $this
-     */
-    public function pk($pk)
-    {
-        $this->options['pk'] = $pk;
-        return $this;
-    }
-
-    /**
      * 关联预载入查询
      * @access public
      * @param mixed $with
@@ -1063,7 +1100,7 @@ class Query
      */
     public function getPk()
     {
-        return !empty($this->options['pk']) ? $this->options['pk'] : $this->getConfig('pk');
+        return !empty($this->pk) ? $this->pk : $this->getConfig('pk');
     }
 
     /**
@@ -1111,7 +1148,7 @@ class Query
      */
     protected function parsePkWhere($data, &$options)
     {
-        $pk = isset($options['pk']) ? $options['pk'] : $this->getPk();
+        $pk = $this->getPk();
 
         if (is_string($pk)) {
             // 根据主键查询
@@ -1216,7 +1253,7 @@ class Query
     {
         $options = $this->parseExpress();
         if (empty($options['where'])) {
-            $pk = isset($options['pk']) ? $options['pk'] : $this->getPk();
+            $pk = $this->getPk();
             // 如果存在主键数据 则自动作为更新条件
             if (is_string($pk) && isset($data[$pk])) {
                 $where[$pk] = $data[$pk];
@@ -1549,7 +1586,6 @@ class Query
      */
     public function getTableInfo($tableName = '', $fetch = '')
     {
-        static $_info = [];
         if (!$tableName) {
             $tableName = $this->getTable();
         }
@@ -1565,7 +1601,7 @@ class Query
         }
 
         $guid = md5($tableName);
-        if (!isset($_info[$guid])) {
+        if (!isset(self::$info[$guid])) {
             $result = $this->table($tableName)->find();
             $fields = array_keys($result);
             $type   = [];
@@ -1580,10 +1616,10 @@ class Query
                 // 设置主键
                 $pk = null;
             }
-            $result       = ['fields' => $fields, 'type' => $type, 'pk' => $pk];
-            $_info[$guid] = $result;
+            $result            = ['fields' => $fields, 'type' => $type, 'pk' => $pk];
+            self::$info[$guid] = $result;
         }
-        return $fetch ? $_info[$guid][$fetch] : $_info[$guid];
+        return $fetch ? self::$info[$guid][$fetch] : self::$info[$guid];
     }
 
     /**
