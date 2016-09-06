@@ -213,11 +213,11 @@ class Builder
         } elseif ('between' == $exp) {
             // 区间查询
             $value       = is_array($value) ? $value : explode(',', $value);
-            $query[$key] = ['$gte' => $value[0], '$lte' => $value[1]];
+            $query[$key] = ['$gte' => $this->parseValue($value[0], $key), '$lte' => $this->parseValue($value[1], $key)];
         } elseif ('not between' == $exp) {
             // 范围查询
             $value       = is_array($value) ? $value : explode(',', $value);
-            $query[$key] = ['$lt' => $value[0], '$gt' => $value[1]];
+            $query[$key] = ['$lt' => $this->parseValue($value[0], $key), '$gt' => $this->parseValue($value[1], $key)];
         } elseif ('exists' == $exp) {
             // 字段是否存在
             $query[$key] = ['$exists' => (bool) $value];
@@ -232,7 +232,10 @@ class Builder
             $query[$key] = $value instanceof Regex ? $value : new Regex($value, 'i');
         } elseif (in_array($exp, ['nin', 'in'])) {
             // IN 查询
-            $value       = is_array($value) ? $value : explode(',', $value);
+            $value = is_array($value) ? $value : explode(',', $value);
+            foreach ($value as $k => $val) {
+                $value[$k] = $this->parseValue($val, $key);
+            }
             $query[$key] = ['$' . $exp => $value];
         } elseif ('regex' == $exp) {
             $query[$key] = $value instanceof Regex ? $value : new Regex($value, 'i');
