@@ -297,6 +297,16 @@ class Query
     }
 
     /**
+     * 获取最近一次执行的指令
+     * @access public
+     * @return string
+     */
+    public function getLastSql()
+    {
+        return $this->connection->getQueryStr();
+    }
+
+    /**
      * 获取数据库的配置参数
      * @access public
      * @param string $name 参数名称
