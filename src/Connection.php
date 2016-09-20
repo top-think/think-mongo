@@ -109,7 +109,7 @@ class Connection
         // typeMap
         'type_map'       => ['root' => 'array', 'document' => 'array'],
         // Query对象
-        'query'          => 'think\mongo\Query',
+        'query'          => '\\think\\mongo\\Query',
     ];
 
     /**
