@@ -108,6 +108,8 @@ class Connection
         'pk_convert_id'  => false,
         // typeMap
         'type_map'       => ['root' => 'array', 'document' => 'array'],
+        // Query对象
+        'query'          => 'think\mongo\Query',
     ];
 
     /**
@@ -167,12 +169,14 @@ class Connection
      * 创建指定模型的查询对象
      * @access public
      * @param string $model 模型类名称
+     * @param string $queryClass 查询对象类名
      * @return Query
      */
-    public function model($model)
+    public function model($model, $queryClass = '')
     {
         if (!isset($this->query[$model])) {
-            $this->query[$model] = new Query($this, $model);
+            $class               = $queryClass ?: $this->config['query'];
+            $this->query[$model] = new $class($this, $model);
         }
         return $this->query[$model];
     }
@@ -187,7 +191,8 @@ class Connection
     public function __call($method, $args)
     {
         if (!isset($this->query['database'])) {
-            $this->query['database'] = new Query($this);
+            $class                   = $this->config['query'];
+            $this->query['database'] = new $class($this);
         }
         return call_user_func_array([$this->query['database'], $method], $args);
     }

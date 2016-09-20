@@ -51,10 +51,6 @@ class Query
     protected $name = '';
     // 当前数据表主键
     protected $pk;
-    // 当前表字段类型信息
-    protected $fieldType = [];
-    // 当前允许的字段列表
-    protected $allowField = [];
     // 当前数据表前缀
     protected $prefix = '';
     // 查询参数
@@ -166,35 +162,6 @@ class Query
             $tableName = $this->table;
         }
         return $tableName;
-    }
-
-    /**
-     * 设置数据表字段
-     * @access public
-     * @param string|array $field 字段信息
-     * @return $this
-     */
-    public function allowField($field)
-    {
-        if (true === $field) {
-            $field = $this->getTableInfo('', 'fields');
-        } elseif (is_string($field)) {
-            $field = explode(',', $field);
-        }
-        $this->allowField = $field;
-        return $this;
-    }
-
-    /**
-     * 设置字段类型
-     * @access public
-     * @param array $fieldType 字段类型信息
-     * @return $this
-     */
-    public function setFieldType($fieldType = [])
-    {
-        $this->fieldType = $fieldType;
-        return $this;
     }
 
     /**
