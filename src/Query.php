@@ -359,12 +359,16 @@ class Query
                 $key2   = $fields ? array_shift($fields) : '';
                 $key    = $key ?: $key1;
                 foreach ($resultSet as $val) {
-                    if ($count > 2) {
-                        $result[$val[$key]] = $val;
-                    } elseif (2 == $count) {
-                        $result[$val[$key]] = $val[$key2];
+                    $name = $val[$key];
+                    if ($name instanceof ObjectID) {
+                        $name = $name->__toString();
+                    }
+                    if (2 == $count) {
+                        $result[$name] = $val[$key2];
                     } elseif (1 == $count) {
-                        $result[$val[$key]] = $val[$key1];
+                        $result[$name] = $val[$key1];
+                    } else {
+                        $result[$name] = $val;
                     }
                 }
             } else {
@@ -487,7 +491,7 @@ class Query
                 return true; // 等待下次写入
             }
         }
-        return $this->setField($field, ['$inc', '+' . $step]);
+        return $this->setField($field, ['$inc', $step]);
     }
 
     /**
@@ -514,7 +518,7 @@ class Query
                 return true; // 等待下次写入
             }
         }
-        return $this->setField($field, ['$inc', '-' . $step]);
+        return $this->setField($field, ['$inc', -1 * $step]);
     }
 
     /**
