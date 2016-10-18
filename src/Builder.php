@@ -32,7 +32,7 @@ class Builder
     // 最后插入ID
     protected $insertId = [];
     // 查询表达式
-    protected $exp = ['<>' => 'ne', 'neq' => 'ne', '=' => '=', '>' => 'gt', '>=' => 'gte', '<' => 'lt', '<=' => 'lte', 'in' => 'in', 'not in' => 'nin', 'nin' => 'nin', 'mod' => 'mod', 'exists' => 'exists', 'regex' => 'regex', 'type' => 'type', 'all' => 'all', '> time' => '> time', '< time' => '< time', 'between' => 'between', 'not between' => 'not between', 'between time' => 'between time', 'not between time' => 'not between time', 'notbetween time' => 'not between time', 'like' => 'like'];
+    protected $exp = ['<>' => 'ne', 'neq' => 'ne', '=' => 'eq', '>' => 'gt', '>=' => 'gte', '<' => 'lt', '<=' => 'lte', 'in' => 'in', 'not in' => 'nin', 'nin' => 'nin', 'mod' => 'mod', 'exists' => 'exists', 'regex' => 'regex', 'type' => 'type', 'all' => 'all', '> time' => '> time', '< time' => '< time', 'between' => 'between', 'not between' => 'not between', 'between time' => 'between time', 'not between time' => 'not between time', 'notbetween time' => 'not between time', 'like' => 'like','near' => 'near'];
 
     /**
      * 架构函数
@@ -251,6 +251,9 @@ class Builder
             // 范围查询
             $value       = is_array($value) ? $value : explode(',', $value);
             $query[$key] = ['$lt' => $this->parseDateTime($value[0], $field), '$gt' => $this->parseDateTime($value[1], $field)];
+        } elseif ('near' == $exp) {
+            // 经纬度查询
+            $query[$key] = ['$near' => $this->parseValue($value, $key)];
         } else {
             // 普通查询
             $query[$key] = $this->parseValue($value, $key);
