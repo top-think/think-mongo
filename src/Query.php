@@ -945,7 +945,7 @@ class Query
     public function field($field, $except = false)
     {
         if (is_string($field)) {
-            $field = explode(',', $field);
+            $field = array_map('trim', explode(',', $field));
         }
         $projection = [];
         foreach ($field as $key => $val) {
