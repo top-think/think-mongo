@@ -183,14 +183,22 @@ class Builder
 
         // 对一个字段使用多个查询条件
         if (is_array($exp)) {
-            foreach ($val as $item) {
-                $str[] = $this->parseWhereItem($key, $item);
+            $data = [];
+            foreach ($val as $value) {
+                $exp   = $value[0];
+                $value = $value[1];
+                if (!in_array($exp, $this->exp)) {
+                    $exp = strtolower($exp);
+                    if (isset($this->exp[$exp])) {
+                        $exp = $this->exp[$exp];
+                    }
+                }
+                $k        = '$' . $exp;
+                $data[$k] = $value;
             }
-            return $str;
-        }
-
-        // 检测操作符
-        if (!in_array($exp, $this->exp)) {
+            $query[$key] = $data;
+            return $query;
+        } elseif (!in_array($exp, $this->exp)) {
             $exp = strtolower($exp);
             if (isset($this->exp[$exp])) {
                 $exp = $this->exp[$exp];
