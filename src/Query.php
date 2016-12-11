@@ -1584,7 +1584,7 @@ class Query
         $guid = md5($tableName);
         if (!isset(self::$info[$guid])) {
             $result = $this->table($tableName)->find();
-            $fields = array_keys($result);
+            $fields = array_keys($result->getData());
             $type   = [];
             foreach ($result as $key => $val) {
                 // 记录字段类型
