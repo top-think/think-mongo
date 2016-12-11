@@ -1583,7 +1583,7 @@ class Query
 
         $guid = md5($tableName);
         if (!isset(self::$info[$guid])) {
-            $result = $this->table($tableName)->find();
+            $result = $this->table($tableName)->find()->toArray();
             $fields = array_keys($result);
             $type   = [];
             foreach ($result as $key => $val) {
