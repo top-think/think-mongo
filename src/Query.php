@@ -1584,6 +1584,9 @@ class Query
         $guid = md5($tableName);
         if (!isset(self::$info[$guid])) {
             $result = $this->table($tableName)->find();
+            if ($result instanceof Model) {
+                $result = $result->toArray();
+            }
             $fields = array_keys($result);
             $type   = [];
             foreach ($result as $key => $val) {
