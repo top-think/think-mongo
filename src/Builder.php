@@ -18,8 +18,6 @@ use MongoDB\Driver\BulkWrite;
 use MongoDB\Driver\Command;
 use MongoDB\Driver\Query as MongoQuery;
 use think\Exception;
-use think\mongo\Connection;
-use think\mongo\Query;
 
 class Builder
 {

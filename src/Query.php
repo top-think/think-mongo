@@ -33,8 +33,6 @@ use think\Exception;
 use think\exception\DbException;
 use think\Loader;
 use think\Model;
-use think\mongo\Builder;
-use think\mongo\Connection;
 use think\Paginator;
 
 class Query
