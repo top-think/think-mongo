@@ -28,7 +28,6 @@ use think\Db;
 use think\Debug;
 use think\Exception;
 use think\Log;
-use think\mongo\Query as Query;
 
 /**
  * Mongo数据库驱动
@@ -228,7 +227,7 @@ class Connection
     public function getMongo()
     {
         if (!$this->mongo) {
-            return null;
+            return;
         } else {
             return $this->mongo;
         }
