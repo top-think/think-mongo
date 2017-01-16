@@ -13,6 +13,7 @@ namespace think\mongo;
 
 use MongoDB\BSON\Javascript;
 use MongoDB\BSON\ObjectID;
+use MongoDB\BSON\UTCDateTime;
 use MongoDB\BSON\Regex;
 use MongoDB\Driver\BulkWrite;
 use MongoDB\Driver\Command;
@@ -70,7 +71,41 @@ class Builder
         if ('_id' == $field && !($value instanceof ObjectID)) {
             return new ObjectID($value);
         }
+        $this->convertDataType($value, $field);
         return $value;
+    }
+
+    /**
+     * 数据格式转换
+     * @param  mixed  &$data
+     * @param  string $field
+     */
+    protected function convertDataType(&$data, $field) {
+        if (is_array($data)) {
+            foreach ($data as $key => $value) {
+                $this->convertDataType($data[$key], $field . '.' . $key);
+            }
+            return;
+        }
+        switch ($data) {
+            case $this->isDateTimeString($data):
+                $data = $this->parseDateTime($data, $field);
+                break;
+            default:
+                break;
+        }
+    }
+
+    /**
+     * 判断字符串是否是时间
+     * @param  string   $dateTime
+     * @return boolean
+     */
+    protected function isDateTimeString($dateTime) {
+        if (is_string($dateTime) && preg_match('/^\d{4}-\d{2}-\d{2}[\d\s\:]*$/s', $dateTime)) {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -280,15 +315,13 @@ class Builder
     {
         // 获取时间字段类型
         $type = $this->query->getTableInfo('', 'type');
+        $time = strtotime($value) ?: $value;
         if (isset($type[$key])) {
-            $value = strtotime($value) ?: $value;
-            if (preg_match('/(datetime|timestamp)/is', $type[$key])) {
-                // 日期及时间戳类型
-                $value = date('Y-m-d H:i:s', $value);
-            } elseif (preg_match('/(date)/is', $type[$key])) {
-                // 日期及时间戳类型
-                $value = date('Y-m-d', $value);
+            if (preg_match('/(UTCDateTime)/is', $type[$key])) {
+                $value = new UTCDateTime($time*1000);
             }
+        } elseif (!($value instanceof UTCDateTime)) {
+            $value = new UTCDateTime($time*1000);
         }
         return $value;
     }
