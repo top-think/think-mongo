@@ -318,10 +318,10 @@ class Builder
         $time = strtotime($value) ?: $value;
         if (isset($type[$key])) {
             if (preg_match('/(UTCDateTime)/is', $type[$key])) {
-                $value = new UTCDateTime($time*1000);
+                $value = new UTCDateTime($time * 1000);
             }
         } elseif (!($value instanceof UTCDateTime)) {
-            $value = new UTCDateTime($time*1000);
+            $value = new UTCDateTime($time * 1000);
         }
         return $value;
     }
