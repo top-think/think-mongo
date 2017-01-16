@@ -23,6 +23,7 @@ use MongoDB\Driver\Manager;
 use MongoDB\Driver\Query as MongoQuery;
 use MongoDB\Driver\ReadPreference;
 use MongoDB\Driver\WriteConcern;
+use MongoDB\BSON\UTCDateTime;
 use think\Collection;
 use think\Db;
 use think\Debug;
@@ -331,12 +332,15 @@ class Connection
 
         // 获取数据集
         $result = $this->cursor->toArray();
-        if ($this->getConfig('pk_convert_id')) {
+
+        $pkConvertId = $this->getConfig('pk_convert_id');
+        foreach ($result as &$data) {
             // 转换ObjectID 字段
-            foreach ($result as &$data) {
-                $this->convertObjectID($data);
-            }
+            $this->convertObjectID($data, $pkConvertId);
+            // 转换UTCDateTime 字段
+            $this->convertUTCDateTime($data);
         }
+
         $this->numRows = count($result);
         if ('collection' == $this->resultSetType) {
             // 返回数据集Collection对象
@@ -351,11 +355,36 @@ class Connection
      * @param array     $data
      * @return void
      */
-    private function convertObjectID(&$data)
+    private function convertObjectID(&$data, $pkConvertId=false)
     {
         if (isset($data['_id'])) {
-            $data['id'] = $data['_id']->__toString();
-            unset($data['_id']);
+            $id = $data['_id']->__toString();
+            if ($pkConvertId) {
+                $data['id'] = $id;
+                unset($data['_id']);
+            } else {
+                $data['_id'] = $id;
+            }
+        }
+    }
+
+    /**
+     * UTCDateTime处理
+     * @access public
+     * @param array     $data
+     * @return void
+     */
+    private function convertUTCDateTime(&$data)
+    {
+        if ($data) {
+            foreach ($data as $key => $value) {
+                if ($value instanceof UTCDateTime) {
+                    $time = strtotime($value->toDateTime()->format(DATE_RSS).' UTC');
+                    $data[$key] = date("Y-m-d H:i:s", $time);
+                } elseif (is_array($value)) {
+                    $this->convertUTCDateTime($data[$key]);
+                }
+            }
         }
     }
 
