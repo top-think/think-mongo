@@ -67,7 +67,9 @@ class Query
         $this->connection = $connection ?: Db::connect([], true);
         $this->prefix     = $this->connection->getConfig('prefix');
         $this->model      = $model;
-        $this->builder    = new Builder($this->connection, $this);
+        // 设置当前连接的Builder对象
+        $this->setBuilder();
+        $this->builder = new Builder($this->connection, $this);
     }
 
     /**
@@ -115,7 +117,19 @@ class Query
     public function connect($config)
     {
         $this->connection = Db::connect($config);
+        $this->setBuilder();
         return $this;
+    }
+
+    /**
+     * 设置当前的数据库Builder对象
+     * @access protected
+     * @return void
+     */
+    protected function setBuilder()
+    {
+        $class         = $this->connection->getBuilder();
+        $this->builder = new $class($this->connection, $this);
     }
 
     /**
@@ -779,18 +793,6 @@ class Query
     }
 
     /**
-     * 指定数据集返回对象
-     * @access public
-     * @param string $class 指定返回的数据集对象类名
-     * @return $this
-     */
-    public function fetchClass($class)
-    {
-        $this->options['fetch_class'] = $class;
-        return $this;
-    }
-
-    /**
      * 设置typeMap
      * @access public
      * @param string|array $typeMap
@@ -1315,6 +1317,22 @@ class Query
     }
 
     /**
+     * 执行查询但只返回Cursor对象
+     * @access public
+     * @return Cursor
+     */
+    public function getCursor()
+    {
+        // 分析查询表达式
+        $options = $this->parseExpress();
+        // 生成MongoQuery对象
+        $query = $this->builder->select($options);
+        // 执行查询操作
+        $readPreference = isset($options['readPreference']) ? $options['readPreference'] : null;
+        return $this->query($options['table'], $query, $readPreference, true, $options['typeMap']);
+    }
+
+    /**
      * 查找记录
      * @access public
      * @param array|string|Query|\Closure $data
@@ -1367,28 +1385,40 @@ class Query
             }
         }
 
-        // 返回结果处理
-        if ($resultSet) {
-            // 数据列表读取后的处理
-            if (!empty($this->model)) {
-                // 生成模型对象
-                $model = $this->model;
+        // 数据列表读取后的处理
+        if (!empty($this->model)) {
+            // 生成模型对象
+            $modelName = $this->model;
+            if (count($resultSet) > 0) {
                 foreach ($resultSet as $key => $result) {
                     /** @var Model $result */
-                    $result = new $model($result);
-                    $result->isUpdate(true);
+                    $model = new $modelName($result);
+                    $model->isUpdate(true);
+
                     // 关联查询
                     if (!empty($options['relation'])) {
-                        $result->relationQuery($options['relation']);
+                        $model->relationQuery($options['relation']);
                     }
-                    $resultSet[$key] = $result;
+                    // 关联统计
+                    if (!empty($options['with_count'])) {
+                        $model->relationCount($model, $options['with_count']);
+                    }
+                    $resultSet[$key] = $model;
                 }
                 if (!empty($options['with'])) {
                     // 预载入
-                    $resultSet = $result->eagerlyResultSet($resultSet, $options['with'], is_object($resultSet) ? get_class($resultSet) : '');
+                    $model->eagerlyResultSet($resultSet, $options['with']);
                 }
+                // 模型数据集转换
+                $resultSet = $model->toCollection($resultSet);
+            } else {
+                $resultSet = (new $modelName)->toCollection($resultSet);
             }
-        } elseif (!empty($options['fail'])) {
+        } elseif ('collection' == $this->connection->getConfig('resultset_type')) {
+            // 返回Collection对象
+            $resultSet = new Collection($resultSet);
+        }
+        if (!empty($options['fail']) && count($resultSet) == 0) {
             $this->throwNotFound($options);
         }
         return $resultSet;
@@ -1466,7 +1496,11 @@ class Query
                 }
                 if (!empty($options['with'])) {
                     // 预载入
-                    $data->eagerlyResult($data, $options['with'], is_object($result) ? get_class($result) : '');
+                    $data->eagerlyResult($data, $options['with']);
+                }
+                // 关联统计
+                if (!empty($options['with_count'])) {
+                    $data->relationCount($data, $options['with_count']);
                 }
             }
         } elseif (!empty($options['fail'])) {

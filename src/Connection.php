@@ -37,8 +37,6 @@ class Connection
     protected $dbName = ''; // dbName
     /** @var string 当前SQL指令 */
     protected $queryStr = '';
-    // 查询数据集类型
-    protected $resultSetType = 'array';
     // 查询数据类型
     protected $typeMap = 'array';
     protected $mongo; // MongoDb Object
@@ -59,6 +57,8 @@ class Connection
     protected $error = '';
     // 查询对象
     protected $query = [];
+    // Builder类名
+    protected $builder = '\\think\\mongo\\Builder';
     // 查询参数
     protected $options = [];
     // 数据库连接参数配置
@@ -144,10 +144,7 @@ class Connection
             }
             $this->dbName  = $config['database'];
             $this->typeMap = $config['type_map'];
-            // 记录数据集返回类型
-            if (isset($config['resultset_type'])) {
-                $this->resultSetType = $config['resultset_type'];
-            }
+
             if ($config['pk_convert_id'] && '_id' == $config['pk']) {
                 $this->config['pk'] = 'id';
             }
@@ -171,13 +168,23 @@ class Connection
      * @param string $queryClass 查询对象类名
      * @return Query
      */
-    public function model($model, $queryClass = '')
+    public function getQuery($model = 'db', $queryClass = '')
     {
         if (!isset($this->query[$model])) {
             $class               = $queryClass ?: $this->config['query'];
-            $this->query[$model] = new $class($this, $model);
+            $this->query[$model] = new $class($this, 'db' == $model ? '' : $model);
         }
         return $this->query[$model];
+    }
+
+    /**
+     * 获取当前连接器类对应的Builder类
+     * @access public
+     * @return string
+     */
+    public function getBuilder()
+    {
+        return $this->builder;
     }
 
     /**
@@ -338,10 +345,7 @@ class Connection
             }
         }
         $this->numRows = count($result);
-        if ('collection' == $this->resultSetType) {
-            // 返回数据集Collection对象
-            $result = new Collection($result);
-        }
+
         return $result;
     }
 
