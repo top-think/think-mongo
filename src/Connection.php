@@ -9,6 +9,7 @@
 
 namespace think\mongo;
 
+use MongoDB\BSON\ObjectID;
 use MongoDB\Driver\BulkWrite;
 use MongoDB\Driver\Command;
 use MongoDB\Driver\Cursor;
@@ -55,8 +56,6 @@ class Connection
     protected $error = '';
     // 查询对象
     protected $query = [];
-    // Builder类名
-    protected $builder = '\\think\\mongo\\Builder';
     // 查询参数
     protected $options = [];
     // 数据库连接参数配置
@@ -173,16 +172,6 @@ class Connection
             $this->query[$model] = new $class($this, 'db' == $model ? '' : $model);
         }
         return $this->query[$model];
-    }
-
-    /**
-     * 获取当前连接器类对应的Builder类
-     * @access public
-     * @return string
-     */
-    public function getBuilder()
-    {
-        return $this->builder;
     }
 
     /**
@@ -516,10 +505,11 @@ class Connection
      */
     public function close()
     {
-        if ($this->mongo) {
-            $this->mongo  = null;
-            $this->cursor = null;
-        }
+        $this->mongo     = null;
+        $this->cursor    = null;
+        $this->linkRead  = null;
+        $this->linkWrite = null;
+        $this->links     = [];
     }
 
     /**
