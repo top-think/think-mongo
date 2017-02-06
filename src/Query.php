@@ -596,6 +596,55 @@ class Query
     }
 
     /**
+     * 设置数据
+     * @access public
+     * @param mixed $field 字段名或者数据
+     * @param mixed $value 字段值
+     * @return $this
+     */
+    public function data($field, $value = null)
+    {
+        if (is_array($field)) {
+            $this->options['data'] = isset($this->options['data']) ? array_merge($this->options['data'], $field) : $field;
+        } else {
+            $this->options['data'][$field] = $value;
+        }
+        return $this;
+    }
+
+    /**
+     * 字段值增长
+     * @access public
+     * @param string|array $field 字段名
+     * @param integer      $step  增长值
+     * @return $this
+     */
+    public function inc($field, $step = 1)
+    {
+        $fields = is_string($field) ? explode(',', $field) : $field;
+        foreach ($fields as $field) {
+            $this->data($field, ['$inc', $step]);
+        }
+        return $this;
+    }
+
+    /**
+     * 字段值减少
+     * @access public
+     * @param string|array $field 字段名
+     * @param integer      $step  减少值
+     * @return $this
+     */
+    public function dec($field, $step = 1)
+    {
+        $fields = is_string($field) ? explode(',', $field) : $field;
+        foreach ($fields as $field) {
+            $this->data($field, ['$inc', -1 * $step]);
+        }
+        return $this;
+    }
+
+    /**
      * 指定AND查询条件
      * @access public
      * @param mixed $field 查询字段
