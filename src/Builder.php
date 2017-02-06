@@ -28,7 +28,7 @@ class Builder
     // 最后插入ID
     protected $insertId = [];
     // 查询表达式
-    protected $exp = ['<>' => 'ne', 'neq' => 'ne', '=' => 'eq', '>' => 'gt', '>=' => 'gte', '<' => 'lt', '<=' => 'lte', 'in' => 'in', 'not in' => 'nin', 'nin' => 'nin', 'mod' => 'mod', 'exists' => 'exists', 'regex' => 'regex', 'type' => 'type', 'all' => 'all', '> time' => '> time', '< time' => '< time', 'between' => 'between', 'not between' => 'not between', 'between time' => 'between time', 'not between time' => 'not between time', 'notbetween time' => 'not between time', 'like' => 'like', 'near' => 'near'];
+    protected $exp = ['<>' => 'ne', 'neq' => 'ne', '=' => 'eq', '>' => 'gt', '>=' => 'gte', '<' => 'lt', '<=' => 'lte', 'in' => 'in', 'not in' => 'nin', 'nin' => 'nin', 'mod' => 'mod', 'exists' => 'exists', 'null' => 'null', 'notnull' => 'not null', 'not null' => 'not null', 'regex' => 'regex', 'type' => 'type', 'all' => 'all', '> time' => '> time', '< time' => '< time', 'between' => 'between', 'not between' => 'not between', 'between time' => 'between time', 'not between time' => 'not between time', 'notbetween time' => 'not between time', 'like' => 'like', 'near' => 'near'];
 
     /**
      * 架构函数
@@ -50,6 +50,9 @@ class Builder
      */
     protected function parseKey($key)
     {
+        if (strpos($key, '.')) {
+            list($collection, $key) = explode('.', $key);
+        }
         if ('id' == $key && $this->connection->getConfig('pk_convert_id')) {
             $key = '_id';
         }
@@ -213,6 +216,11 @@ class Builder
             // 比较运算
             $k           = '$' . $exp;
             $query[$key] = [$k => $this->parseValue($value, $key)];
+        } elseif ('null' == $exp) {
+            // NULL 查询
+            $query[$key] = null;
+        } elseif ('not null' == $exp) {
+            $query[$key] = ['$ne' => null];
         } elseif ('all' == $exp) {
             // 满足所有指定条件
             $query[$key] = ['$all', $this->parseValue($value, $key)];
