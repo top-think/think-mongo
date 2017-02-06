@@ -52,6 +52,9 @@ class Builder
     {
         if (strpos($key, '.')) {
             list($collection, $key) = explode('.', $key);
+            if (is_numeric($key)) {
+                $key = $collection . '.' . $key;
+            }
         }
         if ('id' == $key && $this->connection->getConfig('pk_convert_id')) {
             $key = '_id';
