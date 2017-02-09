@@ -50,11 +50,8 @@ class Builder
      */
     protected function parseKey($key)
     {
-        if (strpos($key, '.')) {
-            list($collection, $key) = explode('.', $key);
-            if (is_numeric($key)) {
-                $key = $collection . '.' . $key;
-            }
+        if (0 === strpos($key, '__TABLE__.')) {
+            list($collection, $key) = explode('.', $key, 2);
         }
         if ('id' == $key && $this->connection->getConfig('pk_convert_id')) {
             $key = '_id';
