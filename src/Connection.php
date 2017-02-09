@@ -2,8 +2,6 @@
 // +----------------------------------------------------------------------
 // | ThinkPHP [ WE CAN DO IT JUST THINK ]
 // +----------------------------------------------------------------------
-// | Copyright (c) 2006~2016 http://thinkphp.cn All rights reserved.
-// +----------------------------------------------------------------------
 // | Licensed ( http://www.apache.org/licenses/LICENSE-2.0 )
 // +----------------------------------------------------------------------
 // | Author: liu21st <liu21st@gmail.com>
@@ -11,6 +9,7 @@
 
 namespace think\mongo;
 
+use MongoDB\BSON\ObjectID;
 use MongoDB\Driver\BulkWrite;
 use MongoDB\Driver\Command;
 use MongoDB\Driver\Cursor;
@@ -28,7 +27,6 @@ use think\Db;
 use think\Debug;
 use think\Exception;
 use think\Log;
-use think\mongo\Query as Query;
 
 /**
  * Mongo数据库驱动
@@ -38,8 +36,6 @@ class Connection
     protected $dbName = ''; // dbName
     /** @var string 当前SQL指令 */
     protected $queryStr = '';
-    // 查询数据集类型
-    protected $resultSetType = 'array';
     // 查询数据类型
     protected $typeMap = 'array';
     protected $mongo; // MongoDb Object
@@ -145,10 +141,7 @@ class Connection
             }
             $this->dbName  = $config['database'];
             $this->typeMap = $config['type_map'];
-            // 记录数据集返回类型
-            if (isset($config['resultset_type'])) {
-                $this->resultSetType = $config['resultset_type'];
-            }
+
             if ($config['pk_convert_id'] && '_id' == $config['pk']) {
                 $this->config['pk'] = 'id';
             }
@@ -172,11 +165,11 @@ class Connection
      * @param string $queryClass 查询对象类名
      * @return Query
      */
-    public function model($model, $queryClass = '')
+    public function getQuery($model = 'db', $queryClass = '')
     {
         if (!isset($this->query[$model])) {
             $class               = $queryClass ?: $this->config['query'];
-            $this->query[$model] = new $class($this, $model);
+            $this->query[$model] = new $class($this, 'db' == $model ? '' : $model);
         }
         return $this->query[$model];
     }
@@ -190,11 +183,7 @@ class Connection
      */
     public function __call($method, $args)
     {
-        if (!isset($this->query['database'])) {
-            $class                   = $this->config['query'];
-            $this->query['database'] = new $class($this);
-        }
-        return call_user_func_array([$this->query['database'], $method], $args);
+        return call_user_func_array([$this->getQuery(), $method], $args);
     }
 
     /**
@@ -228,7 +217,7 @@ class Connection
     public function getMongo()
     {
         if (!$this->mongo) {
-            return null;
+            return;
         } else {
             return $this->mongo;
         }
@@ -339,13 +328,7 @@ class Connection
             }
         }
         $this->numRows = count($result);
-        if (!empty($class)) {
-            // 返回指定数据集对象类
-            $result = new $class($result);
-        } elseif ('collection' == $this->resultSetType) {
-            // 返回数据集Collection对象
-            $result = new Collection($result);
-        }
+
         return $result;
     }
 
@@ -522,10 +505,11 @@ class Connection
      */
     public function close()
     {
-        if ($this->mongo) {
-            $this->mongo  = null;
-            $this->cursor = null;
-        }
+        $this->mongo     = null;
+        $this->cursor    = null;
+        $this->linkRead  = null;
+        $this->linkWrite = null;
+        $this->links     = [];
     }
 
     /**
