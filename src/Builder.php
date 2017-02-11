@@ -430,6 +430,36 @@ class Builder
     }
 
     /**
+     * 聚合查询命令
+     * @access public
+     * @param array $options 参数
+     * @param array $extra   指令和字段
+     * @return Command
+     */
+    public function aggregate($options, $extra)
+    {
+        list($fun, $field) = $extra;
+        $pipeline          = [
+            ['$match' => (object) $this->parseWhere($options['where'])],
+            ['$group' => ['_id' => null, 'aggregate' => ['$' . $fun => '$' . $field]]],
+        ];
+        $cmd = [
+            'aggregate'    => $options['table'],
+            'allowDiskUse' => true,
+            'pipeline'     => $pipeline,
+        ];
+
+        foreach (['explain', 'collation', 'bypassDocumentValidation', 'readConcern'] as $option) {
+            if (isset($options[$option])) {
+                $cmd[$option] = $options[$option];
+            }
+        }
+        $command = new Command($cmd);
+        $this->log('aggregate', $cmd);
+        return $command;
+    }
+
+    /**
      * 生成distinct命令
      * @access public
      * @param array     $options 参数

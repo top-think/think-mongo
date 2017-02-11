@@ -492,6 +492,63 @@ class Query
     }
 
     /**
+     * 聚合查询
+     * @access public
+     * @param string $aggregate 聚合指令
+     * @param string $field     字段名
+     * @return mixed
+     */
+    public function aggregate($aggregate, $field)
+    {
+        $result = $this->cmd('aggregate', [$aggregate, $field]);
+        return isset($result[0]['result'][0]['aggregate']) ? $result[0]['result'][0]['aggregate'] : 0;
+    }
+
+    /**
+     * MAX查询
+     * @access public
+     * @param string $field   字段名
+     * @return float
+     */
+    public function max($field)
+    {
+        return $this->aggregate('max', $field);
+    }
+
+    /**
+     * MIN查询
+     * @access public
+     * @param string $field   字段名
+     * @return mixed
+     */
+    public function min($field)
+    {
+        return $this->aggregate('min', $field);
+    }
+
+    /**
+     * SUM查询
+     * @access public
+     * @param string $field   字段名
+     * @return float
+     */
+    public function sum($field)
+    {
+        return $this->aggregate('sum', $field);
+    }
+
+    /**
+     * AVG查询
+     * @access public
+     * @param string $field   字段名
+     * @return float
+     */
+    public function avg($field)
+    {
+        return $this->aggregate('avg', $field);
+    }
+
+    /**
      * 设置记录的某个字段值
      * 支持使用数据库字段和方法
      * @access public
@@ -956,6 +1013,17 @@ class Query
     }
 
     /**
+     * 指定当前操作的collection
+     * @access public
+     * @param string $collection
+     * @return $this
+     */
+    public function collection($collection)
+    {
+        return $this->table($collection);
+    }
+
+    /**
      * 查询缓存
      * @access public
      * @param mixed   $key    缓存key
@@ -1128,6 +1196,18 @@ class Query
     public function maxTimeMS($maxTimeMS)
     {
         $this->options['maxTimeMS'] = $maxTimeMS;
+        return $this;
+    }
+
+    /**
+     * collation
+     * @access public
+     * @param array $collation
+     * @return $this
+     */
+    public function collation($collation)
+    {
+        $this->options['collation'] = $collation;
         return $this;
     }
 
