@@ -68,7 +68,7 @@ class Builder
      */
     protected function parseValue($value, $field = '')
     {
-        if ('_id' == $field && 'ObjectID' == $this->$this->connection->getConfig('pk_type') && is_string($value)) {
+        if ('_id' == $field && 'ObjectID' == $this->connection->getConfig('pk_type') && is_string($value)) {
             return new ObjectID($value);
         }
         return $value;
