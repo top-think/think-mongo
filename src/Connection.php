@@ -80,6 +80,8 @@ class Connection
         'charset'         => 'utf8',
         // 主键名
         'pk'              => '_id',
+        // 主键类型
+        'pk_type'         => 'ObjectID',
         // 数据库表前缀
         'prefix'          => '',
         // 数据库调试模式
