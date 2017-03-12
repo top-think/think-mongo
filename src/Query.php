@@ -1800,7 +1800,7 @@ class Query
      * 查找单条记录
      * @access public
      * @param array|string|Query|\Closure $data
-     * @return array|false|Cursor|string|Model
+     * @return array|null|Cursor|string|Model
      * @throws ModelNotFoundException
      * @throws DataNotFoundException
      * @throws AuthenticationException
@@ -2005,6 +2005,8 @@ class Query
             $result = $this->table($tableName)->find();
             if ($result instanceof Model) {
                 $result = $result->toArray();
+            } elseif (!$result) {
+                $result = [];
             }
             $fields = array_keys($result);
             $type   = [];
