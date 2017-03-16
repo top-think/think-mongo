@@ -592,7 +592,6 @@ class Connection
         return $this->connect($dbConfig, $r);
     }
 
-
     /**
      * 创建基于复制集的连接
      * @return Manager
