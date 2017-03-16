@@ -597,8 +597,9 @@ class Connection
      * 创建基于复制集的连接
      * @return Manager
      */
-    public function replicaSetConnect(){
-        $this->dbName  = $this->config['database'];
+    public function replicaSetConnect()
+    {
+        $this->dbName = $this->config['database'];
         $this->typeMap = $this->config['type_map'];
         if ($this->config['debug']) {
             $startTime = microtime(true);
@@ -616,12 +617,13 @@ class Connection
      * 根据配置信息 生成适用于链接复制集的 URL
      * @return string
      */
-    private function buildUrl(){
+    private function buildUrl()
+    {
         $url = 'mongodb://' . ($this->config['username'] ? "{$this->config['username']}" : '') . ($this->config['password'] ? ":{$this->config['password']}@" : '');
         $hostList = explode(',', $this->config['hostname']);
         $portList = explode(',', $this->config['hostport']);
-        for($i = 0; $i < count($hostList); $i ++){
-            $url = $url . $hostList[$i] . ':'. $portList[0] . ',';
+        for ($i = 0; $i < count($hostList); $i++) {
+            $url = $url . $hostList[$i] . ':' . $portList[0] . ',';
         }
         return rtrim($url, ",") . '/';
     }
