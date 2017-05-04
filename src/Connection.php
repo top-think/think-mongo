@@ -126,6 +126,7 @@ class Connection
         if (!class_exists('\MongoDB\Driver\Manager')) {
             throw new Exception('require mongodb > 1.0');
         }
+
         if (!empty($config)) {
             $this->config = array_merge($this->config, $config);
         }
@@ -180,22 +181,28 @@ class Connection
             } else {
                 $config = array_merge($this->config, $config);
             }
+
             $this->dbName  = $config['database'];
             $this->typeMap = $config['type_map'];
 
             if ($config['pk_convert_id'] && '_id' == $config['pk']) {
                 $this->config['pk'] = 'id';
             }
+
             $host = 'mongodb://' . ($config['username'] ? "{$config['username']}" : '') . ($config['password'] ? ":{$config['password']}@" : '') . $config['hostname'] . ($config['hostport'] ? ":{$config['hostport']}" : '') . '/' . ($config['database'] ? "{$config['database']}" : '');
+
             if ($config['debug']) {
                 $startTime = microtime(true);
             }
+
             $this->links[$linkNum] = new Manager($host, $this->config['params']);
+
             if ($config['debug']) {
                 // 记录数据库连接信息
                 $this->logger('[ DB ] CONNECT:[ UseTime:' . number_format(microtime(true) - $startTime, 6) . 's ] ' . $config['dsn']);
             }
         }
+
         return $this->links[$linkNum];
     }
 
@@ -261,7 +268,8 @@ class Connection
     {
         if (false !== strpos($sql, '__')) {
             $prefix = $this->getConfig('prefix');
-            $sql    = preg_replace_callback("/__([A-Z0-9_-]+)__/sU", function ($match) use ($prefix) {
+
+            $sql = preg_replace_callback("/__([A-Z0-9_-]+)__/sU", function ($match) use ($prefix) {
                 return $prefix . strtolower($match[1]);
             }, $sql);
         }
@@ -291,13 +299,18 @@ class Connection
         if (false === strpos($namespace, '.')) {
             $namespace = $this->dbName . '.' . $namespace;
         }
+
         if ($this->config['debug'] && !empty($this->queryStr)) {
             // 记录执行指令
             $this->queryStr = 'db' . strstr($namespace, '.') . '.' . $this->queryStr;
         }
+
         $this->debug(true);
+
         $this->cursor = $this->mongo->executeQuery($namespace, $query, $readPreference);
+
         $this->debug(false);
+
         return $this->getResult($class, $typeMap);
     }
 
@@ -321,12 +334,17 @@ class Connection
         Db::$queryTimes++;
 
         $this->debug(true);
+
         $dbName = $dbName ?: $this->dbName;
+
         if ($this->config['debug'] && !empty($this->queryStr)) {
             $this->queryStr = 'db.' . $this->queryStr;
         }
+
         $this->cursor = $this->mongo->executeCommand($dbName, $command, $readPreference);
+
         $this->debug(false);
+
         return $this->getResult($class, $typeMap);
 
     }
@@ -343,21 +361,26 @@ class Connection
         if (true === $class) {
             return $this->cursor;
         }
+
         // 设置结果数据类型
         if (is_null($typeMap)) {
             $typeMap = $this->typeMap;
         }
+
         $typeMap = is_string($typeMap) ? ['root' => $typeMap] : $typeMap;
+
         $this->cursor->setTypeMap($typeMap);
 
         // 获取数据集
         $result = $this->cursor->toArray();
+
         if ($this->getConfig('pk_convert_id')) {
             // 转换ObjectID 字段
             foreach ($result as &$data) {
                 $this->convertObjectID($data);
             }
         }
+
         $this->numRows = count($result);
 
         return $result;
@@ -395,17 +418,24 @@ class Connection
     {
         $this->initConnect(true);
         Db::$executeTimes++;
+
         if (false === strpos($namespace, '.')) {
             $namespace = $this->dbName . '.' . $namespace;
         }
+
         if ($this->config['debug'] && !empty($this->queryStr)) {
             // 记录执行指令
             $this->queryStr = 'db' . strstr($namespace, '.') . '.' . $this->queryStr;
         }
+
         $this->debug(true);
+
         $writeResult = $this->mongo->executeBulkWrite($namespace, $bulk, $writeConcern);
+
         $this->debug(false);
+
         $this->numRows = $writeResult->getMatchedCount();
+
         return $writeResult;
     }
 
@@ -422,6 +452,7 @@ class Connection
         if (!$this->config['debug']) {
             return;
         }
+
         if (is_array($data)) {
             array_walk_recursive($data, function (&$value) {
                 if ($value instanceof ObjectID) {
@@ -429,18 +460,22 @@ class Connection
                 }
             });
         }
+
         switch (strtolower($type)) {
             case 'aggregate':
                 $this->queryStr = 'runCommand(' . ($data ? json_encode($data) : '') . ');';
                 break;
             case 'find':
                 $this->queryStr = $type . '(' . ($data ? json_encode($data) : '') . ')';
+
                 if (isset($options['sort'])) {
                     $this->queryStr .= '.sort(' . json_encode($options['sort']) . ')';
                 }
+
                 if (isset($options['limit'])) {
                     $this->queryStr .= '.limit(' . $options['limit'] . ')';
                 }
+
                 $this->queryStr .= ';';
                 break;
             case 'insert':
@@ -454,6 +489,7 @@ class Connection
                 $this->queryStr = $data . '(' . json_encode($options) . ');';
                 break;
         }
+
         $this->options = $options;
     }
 
@@ -525,8 +561,11 @@ class Connection
             } else {
                 // 记录操作结束时间
                 Facade::make('debug')->remark('queryEndTime', 'time');
+
                 $runtime = Facade::make('debug')->getRangeTime('queryStartTime', 'queryEndTime');
-                $sql     = $sql ?: $this->queryStr;
+
+                $sql = $sql ?: $this->queryStr;
+
                 // SQL监听
                 $this->triggerSql($sql, $runtime, $this->options);
             }
@@ -569,11 +608,13 @@ class Connection
                 if (!$this->linkWrite) {
                     $this->linkWrite = $this->multiConnect(true);
                 }
+
                 $this->mongo = $this->linkWrite;
             } else {
                 if (!$this->linkRead) {
                     $this->linkRead = $this->multiConnect(false);
                 }
+
                 $this->mongo = $this->linkRead;
             }
         } elseif (!$this->mongo) {
@@ -619,10 +660,13 @@ class Connection
             // 读写操作不区分服务器 每次随机连接的数据库
             $r = floor(mt_rand(0, count($_config['hostname']) - 1));
         }
+
         $dbConfig = [];
+
         foreach (['username', 'password', 'hostname', 'hostport', 'database', 'dsn', 'charset'] as $name) {
             $dbConfig[$name] = isset($_config[$name][$r]) ? $_config[$name][$r] : $_config[$name][0];
         }
+
         return $this->connect($dbConfig, $r);
     }
 
@@ -634,14 +678,18 @@ class Connection
     {
         $this->dbName  = $this->config['database'];
         $this->typeMap = $this->config['type_map'];
+
         if ($this->config['debug']) {
             $startTime = microtime(true);
         }
+
         $this->config['params']['replicaSet'] = $this->config['database'];
-        $manager                              = new Manager($this->buildUrl(), $this->config['params']);
+
+        $manager = new Manager($this->buildUrl(), $this->config['params']);
+
         if ($this->config['debug']) {
             // 记录数据库连接信息
-            Log::record('[ DB ] CONNECT:[ UseTime:' . number_format(microtime(true) - $startTime, 6) . 's ] ' . $this->config['dsn'], 'sql');
+            $this->logger('[ DB ] CONNECT:[ UseTime:' . number_format(microtime(true) - $startTime, 6) . 's ] ' . $this->config['dsn']);
         }
         return $manager;
     }
@@ -652,19 +700,22 @@ class Connection
      */
     private function buildUrl()
     {
-        $url      = 'mongodb://' . ($this->config['username'] ? "{$this->config['username']}" : '') . ($this->config['password'] ? ":{$this->config['password']}@" : '');
+        $url = 'mongodb://' . ($this->config['username'] ? "{$this->config['username']}" : '') . ($this->config['password'] ? ":{$this->config['password']}@" : '');
+
         $hostList = explode(',', $this->config['hostname']);
         $portList = explode(',', $this->config['hostport']);
+
         for ($i = 0; $i < count($hostList); $i++) {
             $url = $url . $hostList[$i] . ':' . $portList[0] . ',';
         }
+
         return rtrim($url, ",") . '/';
     }
 
     /**
      * 插入记录
      * @access public
-     * @param mixed     $data 数据
+     * @param Query     $query 查询对象
      * @param boolean   $replace      是否replace（目前无效）
      * @param boolean   $getLastInsID 返回自增主键
      * @return WriteResult
@@ -688,9 +739,11 @@ class Connection
         $writeConcern = isset($options['writeConcern']) ? $options['writeConcern'] : null;
         $writeResult  = $this->execute($options['table'], $bulk, $writeConcern);
         $result       = $writeResult->getInsertedCount();
+
         if ($result) {
             $data      = $options['data'];
             $lastInsId = $this->getLastInsID();
+
             if ($lastInsId) {
                 $pk        = $query->getPk($options);
                 $data[$pk] = $lastInsId;
@@ -710,21 +763,30 @@ class Connection
     /**
      * 获取最近插入的ID
      * @access public
-     * @return string
+     * @return mixed
      */
     public function getLastInsID($sequence = null)
     {
         $id = $this->builder->getLastInsID();
-        if ($id instanceof ObjectID) {
+
+        if (is_array($id)) {
+            array_walk($id, function (&$item, $key) {
+                if ($item instanceof ObjectID) {
+                    $item = $item->__toString();
+                }
+            });
+        } elseif ($id instanceof ObjectID) {
             $id = $id->__toString();
         }
+
         return $id;
     }
 
     /**
      * 批量插入记录
      * @access public
-     * @param mixed $dataSet 数据集
+     * @param Query     $query 查询对象
+     * @param mixed     $dataSet 数据集
      * @return integer
      * @throws AuthenticationException
      * @throws InvalidArgumentException
@@ -736,6 +798,7 @@ class Connection
     {
         // 分析查询表达式
         $options = $query->getOptions();
+
         if (!is_array(reset($dataSet))) {
             return false;
         }
@@ -751,7 +814,8 @@ class Connection
     /**
      * 更新记录
      * @access public
-     * @param mixed $data 数据
+     * @param Query     $query 查询对象
+     * @param mixed     $data 数据
      * @return int
      * @throws Exception
      * @throws AuthenticationException
@@ -764,10 +828,13 @@ class Connection
     {
         $options = $query->getOptions();
         $data    = $options['data'];
+
         if (isset($options['cache']) && is_string($options['cache']['key'])) {
             $key = $options['cache']['key'];
         }
+
         $pk = $query->getPk($options);
+
         if (empty($options['where'])) {
             // 如果存在主键数据 则自动作为更新条件
             if (is_string($pk) && isset($data[$pk])) {
@@ -783,6 +850,7 @@ class Connection
                         // 如果缺少复合主键数据则不执行
                         throw new Exception('miss complex primary data');
                     }
+
                     unset($data[$field]);
                 }
             }
@@ -800,12 +868,15 @@ class Connection
         $bulk         = $this->builder->update($query);
         $writeConcern = isset($options['writeConcern']) ? $options['writeConcern'] : null;
         $writeResult  = $this->execute($options['table'], $bulk, $writeConcern);
+
         // 检测缓存
         if (isset($key) && Cache::get($key)) {
             // 删除缓存
             Cache::rm($key);
         }
+
         $result = $writeResult->getModifiedCount();
+
         if ($result) {
             if (isset($where[$pk])) {
                 $data[$pk] = $where[$pk];
@@ -813,16 +884,19 @@ class Connection
                 list($a, $val) = explode('|', $key);
                 $data[$pk]     = $val;
             }
+
             $query->setOption('data', $data);
+
             $query->trigger('after_update');
         }
+
         return $result;
     }
 
     /**
      * 删除记录
      * @access public
-     * @param array $data 表达式 true 表示强制删除
+     * @param Query     $query 查询对象
      * @return int
      * @throws Exception
      * @throws AuthenticationException
@@ -837,11 +911,13 @@ class Connection
         $options = $query->getOptions();
         $pk      = $query->getPk($options);
         $data    = $options['data'];
+
         if (!is_null($data) && true !== $data) {
             if (!is_array($data)) {
                 // 缓存标识
                 $key = 'mongo:' . $options['table'] . '|' . $data;
             }
+
             // AR模式分析主键条件
             $query->parsePkWhere($data);
         } elseif (!isset($key) && is_string($pk) && isset($options['where']['$and'][$pk])) {
@@ -854,22 +930,29 @@ class Connection
         }
 
         // 生成bulkWrite对象
-        $bulk         = $this->builder->delete($query);
+        $bulk = $this->builder->delete($query);
+
         $writeConcern = isset($options['writeConcern']) ? $options['writeConcern'] : null;
+
         // 执行操作
         $writeResult = $this->execute($options['table'], $bulk, $writeConcern);
+
         // 检测缓存
         if (isset($key) && Cache::get($key)) {
             // 删除缓存
             Cache::rm($key);
         }
+
         $result = $writeResult->getDeletedCount();
+
         if ($result) {
             if (!is_array($data) && is_string($pk) && isset($key) && strpos($key, '|')) {
                 list($a, $val) = explode('|', $key);
-                $item[$pk]     = $val;
-                $data          = $item;
+
+                $item[$pk] = $val;
+                $data      = $item;
             }
+
             $query->setOption('data', $data);
             $query->trigger('after_delete');
         }
@@ -879,14 +962,17 @@ class Connection
     /**
      * 执行查询但只返回Cursor对象
      * @access public
+     * @param Query     $query 查询对象
      * @return Cursor
      */
     public function getCursor(Query $query)
     {
         // 分析查询表达式
         $options = $query->getOptions();
+
         // 生成MongoQuery对象
         $mongoQuery = $this->builder->select($query);
+
         // 执行查询操作
         $readPreference = isset($options['readPreference']) ? $options['readPreference'] : null;
 
@@ -896,7 +982,7 @@ class Connection
     /**
      * 查找记录
      * @access public
-     * @param array|string|Query|\Closure $data
+     * @param Query     $query 查询对象
      * @return Collection|false|Cursor|string
      * @throws ModelNotFoundException
      * @throws DataNotFoundException
@@ -916,6 +1002,7 @@ class Connection
             $key       = is_string($cache['key']) ? $cache['key'] : md5(serialize($options));
             $resultSet = Cache::get($key);
         }
+
         if (!$resultSet) {
             // 生成MongoQuery对象
             $mongoQuery = $this->builder->select($query);
@@ -924,13 +1011,15 @@ class Connection
             } else {
                 // 执行查询操作
                 $readPreference = isset($options['readPreference']) ? $options['readPreference'] : null;
-                $resultSet      = $this->query($options['table'], $mongoQuery, $readPreference, $options['fetch_cursor'], $options['typeMap']);
+
+                $resultSet = $this->query($options['table'], $mongoQuery, $readPreference, $options['fetch_cursor'], $options['typeMap']);
 
                 if ($resultSet instanceof Cursor) {
                     // 返回MongoDB\Driver\Cursor对象
                     return $resultSet;
                 }
             }
+
             if (isset($cache)) {
                 // 缓存数据集
                 $this->cacheData($key, $resultSet, $cache);
@@ -943,7 +1032,7 @@ class Connection
     /**
      * 查找单条记录
      * @access public
-     * @param array|string|Query|\Closure $data
+     * @param Query     $query 查询对象
      * @return array|null|Cursor|string|Model
      * @throws ModelNotFoundException
      * @throws DataNotFoundException
@@ -988,6 +1077,7 @@ class Connection
                     $data = $item;
                 }
             }
+
             $query->setOption('data', $data);
             $query->setOption('limit', 1);
 
@@ -1005,13 +1095,16 @@ class Connection
                     // 返回MongoDB\Driver\Cursor对象
                     return $resultSet;
                 }
+
                 $result = isset($resultSet[0]) ? $resultSet[0] : null;
             }
+
             if (isset($cache)) {
                 // 缓存数据
                 $this->cacheData($key, $result, $cache);
             }
         }
+
         return $result;
     }
 
@@ -1024,10 +1117,12 @@ class Connection
      */
     protected function cacheData($key, $data, $config = [])
     {
+        $cache = Facade::make('cache');
+
         if (isset($config['tag'])) {
-            Cache::tag($config['tag'])->set($key, $data, $config['expire']);
+            $cache->tag($config['tag'])->set($key, $data, $config['expire']);
         } else {
-            Cache::set($key, $data, $config['expire']);
+            $cache->set($key, $data, $config['expire']);
         }
     }
 
@@ -1041,11 +1136,14 @@ class Connection
     {
         if (is_scalar($value)) {
             $data = $value;
-        } elseif (is_array($value) && '=' == $value[0]) {
+        } elseif (is_array($value) && 'eq' == strtolower($value[0])) {
             $data = $value[1];
         }
+
         if (isset($data)) {
             return 'mongo:' . $options['table'] . '|' . $data;
+        } else {
+            return md5(serialize($options));
         }
     }
 
@@ -1072,14 +1170,18 @@ class Connection
         $guid = md5($tableName);
         if (!isset(self::$info[$guid])) {
             $mongoQuery = new MongoQuery([]);
-            $resultSet  = $this->query($tableName, $mongoQuery, null, true, $this->typeMap);
+
+            $resultSet = $this->query($tableName, $mongoQuery, null, true, $this->typeMap);
+
             if (!$resultSet) {
                 $result = [];
             } else {
                 $result = $resultSet->toArray();
             }
+
             $fields = array_keys($result);
             $type   = [];
+
             foreach ($result as $key => $val) {
                 // 记录字段类型
                 $type[$key] = getType($val);
@@ -1087,13 +1189,16 @@ class Connection
                     $pk = $key;
                 }
             }
+
             if (!isset($pk)) {
                 // 设置主键
                 $pk = null;
             }
+
             $result            = ['fields' => $fields, 'type' => $type, 'pk' => $pk];
             self::$info[$guid] = $result;
         }
+
         return $fetch ? self::$info[$guid][$fetch] : self::$info[$guid];
     }
 
@@ -1115,6 +1220,7 @@ class Connection
             $key    = is_string($cache['key']) ? $cache['key'] : md5($field . serialize($options));
             $result = Cache::get($key);
         }
+
         if (!$result) {
             if (isset($options['field'])) {
                 $query->removeOption('field');
@@ -1128,17 +1234,20 @@ class Connection
             $query->setOption('limit', 1);
 
             $mongoQuery = $this->builder->select($query);
+
             // 执行查询操作
             $readPreference = isset($options['readPreference']) ? $options['readPreference'] : null;
             $cursor         = $this->query($options['table'], $mongoQuery, $readPreference, true, ['root' => 'array']);
             $resultSet      = $cursor->toArray();
             $data           = isset($resultSet[0]) ? $resultSet[0] : null;
             $result         = $data[$field];
+
             if (isset($cache)) {
                 // 缓存数据
                 $this->cacheData($key, $result, $cache);
             }
         }
+
         return !is_null($result) ? $result : $default;
     }
 
@@ -1160,6 +1269,7 @@ class Connection
             $guid   = is_string($cache['key']) ? $cache['key'] : md5($field . serialize($options));
             $result = Cache::get($guid);
         }
+
         if (!$result) {
             if (isset($options['field'])) {
                 $query->removeOption('field');
@@ -1168,9 +1278,11 @@ class Connection
             if ($key && '*' != $field) {
                 $field = $key . ',' . $field;
             }
+
             if (is_string($field)) {
                 $field = array_map('trim', explode(',', $field));
             }
+
             $query->setOption('field', $field);
             $query->setOption('limit', 1);
 
@@ -1179,12 +1291,14 @@ class Connection
             $readPreference = isset($options['readPreference']) ? $options['readPreference'] : null;
             $cursor         = $this->query($options['table'], $mongoQuery, $readPreference, true, ['root' => 'array']);
             $resultSet      = $cursor->toArray();
+
             if ($resultSet) {
                 $fields = array_keys($resultSet[0]);
                 $count  = count($fields);
                 $key1   = array_shift($fields);
                 $key2   = $fields ? array_shift($fields) : '';
                 $key    = $key ?: $key1;
+
                 foreach ($resultSet as $val) {
                     $name = $val[$key];
                     if ($name instanceof ObjectID) {
@@ -1207,12 +1321,14 @@ class Connection
                 $this->cacheData($guid, $result, $cache);
             }
         }
+
         return $result;
     }
 
     /**
      * 执行command
      * @access public
+     * @param Query                 $query      查询对象
      * @param string|array|object   $command 指令
      * @param mixed                 $extra 额外参数
      * @param string                $db 数据库名
@@ -1224,6 +1340,7 @@ class Connection
             if ($this->getConfig('debug')) {
                 $this->log('cmd', 'cmd', $command);
             }
+
             // 直接创建Command对象
             $command = new Command($command);
         } else {

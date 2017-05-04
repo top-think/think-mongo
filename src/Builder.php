@@ -21,8 +21,6 @@ class Builder
 {
     // connection对象实例
     protected $connection;
-    // 查询参数
-    protected $options = [];
     // 最后插入ID
     protected $insertId = [];
     // 查询表达式
@@ -32,7 +30,6 @@ class Builder
      * 架构函数
      * @access public
      * @param Connection    $connection 数据库连接对象实例
-     * @param Query         $query 数据库查询对象实例
      */
     public function __construct(Connection $connection)
     {
@@ -60,15 +57,18 @@ class Builder
         if (0 === strpos($key, '__TABLE__.')) {
             list($collection, $key) = explode('.', $key, 2);
         }
+
         if ('id' == $key && $this->connection->getConfig('pk_convert_id')) {
             $key = '_id';
         }
+
         return trim($key);
     }
 
     /**
      * value分析
      * @access protected
+     * @param Query     $query 查询对象
      * @param mixed     $value
      * @param string    $field
      * @return string
@@ -78,25 +78,28 @@ class Builder
         if ('_id' == $field && 'ObjectID' == $this->connection->getConfig('pk_type') && is_string($value)) {
             return new ObjectID($value);
         }
+
         return $value;
     }
 
     /**
      * insert数据分析
      * @access protected
+     * @param Query $query 查询对象
      * @param array $data 数据
-     * @param array $options 查询参数
      * @return array
      */
-    protected function parseData($query, $data)
+    protected function parseData(Query $query, $data)
     {
         if (empty($data)) {
             return [];
         }
 
         $result = [];
+
         foreach ($data as $key => $val) {
             $item = $this->parseKey($key);
+
             if (is_object($val)) {
                 $result[$item] = $val;
             } elseif (isset($val[0]) && 'exp' == $val[0]) {
@@ -107,14 +110,15 @@ class Builder
                 $result[$item] = $this->parseValue($query, $val, $key);
             }
         }
+
         return $result;
     }
 
     /**
      * Set数据分析
      * @access protected
+     * @param Query $query 查询对象
      * @param array $data 数据
-     * @param array $options 查询参数
      * @return array
      */
     protected function parseSet(Query $query, $data)
@@ -124,20 +128,24 @@ class Builder
         }
 
         $result = [];
+
         foreach ($data as $key => $val) {
             $item = $this->parseKey($key);
+
             if (is_array($val) && isset($val[0]) && in_array($val[0], ['$inc', '$set', '$unset', '$push', '$pushall', '$addtoset', '$pop', '$pull', '$pullall'])) {
                 $result[$val[0]][$item] = $this->parseValue($query, $val[1], $key);
             } else {
                 $result['$set'][$item] = $this->parseValue($query, $val, $key);
             }
         }
+
         return $result;
     }
 
     /**
      * 生成查询过滤条件
      * @access public
+     * @param Query $query 查询对象
      * @param mixed $where
      * @return array
      */
@@ -288,16 +296,19 @@ class Builder
     /**
      * 日期时间条件解析
      * @access protected
-     * @param string $value
-     * @param string $key
+     * @param Query     $query 查询对象
+     * @param string    $value
+     * @param string    $key
      * @return string
      */
     protected function parseDateTime(Query $query, $value, $key)
     {
         // 获取时间字段类型
         $type = $this->connection->getTableInfo('', 'type');
+
         if (isset($type[$key])) {
             $value = strtotime($value) ?: $value;
+
             if (preg_match('/(datetime|timestamp)/is', $type[$key])) {
                 // 日期及时间戳类型
                 $value = date('Y-m-d H:i:s', $value);
@@ -306,6 +317,7 @@ class Builder
                 $value = date('Y-m-d', $value);
             }
         }
+
         return $value;
     }
 
@@ -322,8 +334,8 @@ class Builder
     /**
      * 生成insert BulkWrite对象
      * @access public
+     * @param Query     $query 查询对象
      * @param array     $data 数据
-     * @param array     $options 表达式
      * @return BulkWrite
      */
     public function insert(Query $query, $replace = false)
@@ -346,8 +358,8 @@ class Builder
     /**
      * 生成insertall BulkWrite对象
      * @access public
+     * @param Query     $query 查询对象
      * @param array     $dataSet 数据集
-     * @param array     $options 参数
      * @return BulkWrite
      */
     public function insertAll(Query $query, $dataSet)
@@ -369,8 +381,7 @@ class Builder
     /**
      * 生成update BulkWrite对象
      * @access public
-     * @param array     $data 数据
-     * @param array     $options 参数
+     * @param Query     $query 查询对象
      * @return BulkWrite
      */
     public function update(Query $query)
@@ -396,7 +407,7 @@ class Builder
     /**
      * 生成delete BulkWrite对象
      * @access public
-     * @param array     $options 参数
+     * @param Query     $query 查询对象
      * @return BulkWrite
      */
     public function delete(Query $query)
@@ -420,7 +431,7 @@ class Builder
     /**
      * 生成Mongo查询对象
      * @access public
-     * @param array $options 参数
+     * @param Query     $query 查询对象
      * @return MongoQuery
      */
     public function select(Query $query)
@@ -438,7 +449,7 @@ class Builder
     /**
      * 生成Count命令
      * @access public
-     * @param array $options 参数
+     * @param Query     $query 查询对象
      * @return Command
      */
     public function count(Query $query)
@@ -463,8 +474,8 @@ class Builder
     /**
      * 聚合查询命令
      * @access public
-     * @param array $options 参数
-     * @param array $extra   指令和字段
+     * @param Query     $query  查询对象
+     * @param array     $extra  指令和字段
      * @return Command
      */
     public function aggregate(Query $query, $extra)
@@ -480,6 +491,7 @@ class Builder
             ['$match' => (object) $this->parseWhere($query, $options['where'])],
             ['$group' => ['_id' => null, 'aggregate' => ['$' . $fun => '$' . $field]]],
         ];
+
         $cmd = [
             'aggregate'    => $options['table'],
             'allowDiskUse' => true,
@@ -491,15 +503,18 @@ class Builder
                 $cmd[$option] = $options[$option];
             }
         }
+
         $command = new Command($cmd);
+
         $this->log('aggregate', $cmd);
+
         return $command;
     }
 
     /**
      * 生成distinct命令
      * @access public
-     * @param array     $options 参数
+     * @param Query     $query 查询对象
      * @param string    $field 字段名
      * @return Command
      */
@@ -521,6 +536,7 @@ class Builder
         }
 
         $command = new Command($cmd);
+
         $this->log('cmd', 'distinct', $cmd);
 
         return $command;
@@ -544,6 +560,7 @@ class Builder
     /**
      * 查询数据表的状态信息
      * @access public
+     * @param Query     $query 查询对象
      * @return Command
      */
     public function collStats(Query $query)
