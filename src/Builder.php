@@ -21,8 +21,6 @@ class Builder
 {
     // connection对象实例
     protected $connection;
-    // 查询对象实例
-    protected $query;
     // 查询参数
     protected $options = [];
     // 最后插入ID
@@ -36,10 +34,19 @@ class Builder
      * @param Connection    $connection 数据库连接对象实例
      * @param Query         $query 数据库查询对象实例
      */
-    public function __construct(Connection $connection, Query $query)
+    public function __construct(Connection $connection)
     {
         $this->connection = $connection;
-        $this->query      = $query;
+    }
+
+    /**
+     * 获取当前的连接对象实例
+     * @access public
+     * @return void
+     */
+    public function getConnection()
+    {
+        return $this->connection;
     }
 
     /**
@@ -66,7 +73,7 @@ class Builder
      * @param string    $field
      * @return string
      */
-    protected function parseValue($value, $field = '')
+    protected function parseValue(Query $query, $value, $field = '')
     {
         if ('_id' == $field && 'ObjectID' == $this->connection->getConfig('pk_type') && is_string($value)) {
             return new ObjectID($value);
@@ -81,7 +88,7 @@ class Builder
      * @param array $options 查询参数
      * @return array
      */
-    protected function parseData($data, $options)
+    protected function parseData($query, $data)
     {
         if (empty($data)) {
             return [];
@@ -97,7 +104,7 @@ class Builder
             } elseif (is_null($val)) {
                 $result[$item] = 'NULL';
             } else {
-                $result[$item] = $this->parseValue($val, $key);
+                $result[$item] = $this->parseValue($query, $val, $key);
             }
         }
         return $result;
@@ -110,7 +117,7 @@ class Builder
      * @param array $options 查询参数
      * @return array
      */
-    protected function parseSet($data, $options)
+    protected function parseSet(Query $query, $data)
     {
         if (empty($data)) {
             return [];
@@ -120,9 +127,9 @@ class Builder
         foreach ($data as $key => $val) {
             $item = $this->parseKey($key);
             if (is_array($val) && isset($val[0]) && in_array($val[0], ['$inc', '$set', '$unset', '$push', '$pushall', '$addtoset', '$pop', '$pull', '$pullall'])) {
-                $result[$val[0]][$item] = $this->parseValue($val[1], $key);
+                $result[$val[0]][$item] = $this->parseValue($query, $val[1], $key);
             } else {
-                $result['$set'][$item] = $this->parseValue($val, $key);
+                $result['$set'][$item] = $this->parseValue($query, $val, $key);
             }
         }
         return $result;
@@ -134,7 +141,7 @@ class Builder
      * @param mixed $where
      * @return array
      */
-    public function parseWhere($where)
+    public function parseWhere(Query $query, $where)
     {
         if (empty($where)) {
             $where = [];
@@ -147,24 +154,24 @@ class Builder
                     // 使用闭包查询
                     $query = new Query($this->connection);
                     call_user_func_array($value, [ & $query]);
-                    $filter[$logic][] = $this->parseWhere($query->getOptions('where'));
+                    $filter[$logic][] = $this->parseWhere($query, $query->getOptions('where'));
                 } else {
                     if (strpos($field, '|')) {
                         // 不同字段使用相同查询条件（OR）
                         $array = explode('|', $field);
                         foreach ($array as $k) {
-                            $filter['$or'][] = $this->parseWhereItem($k, $value);
+                            $filter['$or'][] = $this->parseWhereItem($query, $k, $value);
                         }
                     } elseif (strpos($field, '&')) {
                         // 不同字段使用相同查询条件（AND）
                         $array = explode('&', $field);
                         foreach ($array as $k) {
-                            $filter['$and'][] = $this->parseWhereItem($k, $value);
+                            $filter['$and'][] = $this->parseWhereItem($query, $k, $value);
                         }
                     } else {
                         // 对字段使用表达式查询
                         $field            = is_string($field) ? $field : '';
-                        $filter[$logic][] = $this->parseWhereItem($field, $value);
+                        $filter[$logic][] = $this->parseWhereItem($query, $field, $value);
                     }
                 }
             }
@@ -173,7 +180,7 @@ class Builder
     }
 
     // where子单元分析
-    protected function parseWhereItem($field, $val)
+    protected function parseWhereItem(Query $query, $field, $val)
     {
         $key = $field ? $this->parseKey($field) : '';
         // 查询规则和条件
@@ -211,11 +218,11 @@ class Builder
         $query = [];
         if ('=' == $exp) {
             // 普通查询
-            $query[$key] = $this->parseValue($value, $key);
+            $query[$key] = $this->parseValue($query, $value, $key);
         } elseif (in_array($exp, ['neq', 'ne', 'gt', 'egt', 'gte', 'lt', 'lte', 'elt', 'mod'])) {
             // 比较运算
             $k           = '$' . $exp;
-            $query[$key] = [$k => $this->parseValue($value, $key)];
+            $query[$key] = [$k => $this->parseValue($query, $value, $key)];
         } elseif ('null' == $exp) {
             // NULL 查询
             $query[$key] = null;
@@ -223,15 +230,15 @@ class Builder
             $query[$key] = ['$ne' => null];
         } elseif ('all' == $exp) {
             // 满足所有指定条件
-            $query[$key] = ['$all', $this->parseValue($value, $key)];
+            $query[$key] = ['$all', $this->parseValue($query, $value, $key)];
         } elseif ('between' == $exp) {
             // 区间查询
             $value       = is_array($value) ? $value : explode(',', $value);
-            $query[$key] = ['$gte' => $this->parseValue($value[0], $key), '$lte' => $this->parseValue($value[1], $key)];
+            $query[$key] = ['$gte' => $this->parseValue($query, $value[0], $key), '$lte' => $this->parseValue($query, $value[1], $key)];
         } elseif ('not between' == $exp) {
             // 范围查询
             $value       = is_array($value) ? $value : explode(',', $value);
-            $query[$key] = ['$lt' => $this->parseValue($value[0], $key), '$gt' => $this->parseValue($value[1], $key)];
+            $query[$key] = ['$lt' => $this->parseValue($query, $value[0], $key), '$gt' => $this->parseValue($query, $value[1], $key)];
         } elseif ('exists' == $exp) {
             // 字段是否存在
             $query[$key] = ['$exists' => (bool) $value];
@@ -248,32 +255,32 @@ class Builder
             // IN 查询
             $value = is_array($value) ? $value : explode(',', $value);
             foreach ($value as $k => $val) {
-                $value[$k] = $this->parseValue($val, $key);
+                $value[$k] = $this->parseValue($query, $val, $key);
             }
             $query[$key] = ['$' . $exp => $value];
         } elseif ('regex' == $exp) {
             $query[$key] = $value instanceof Regex ? $value : new Regex($value, 'i');
         } elseif ('< time' == $exp) {
-            $query[$key] = ['$lt' => $this->parseDateTime($value, $field)];
+            $query[$key] = ['$lt' => $this->parseDateTime($query, $value, $field)];
         } elseif ('> time' == $exp) {
-            $query[$key] = ['$gt' => $this->parseDateTime($value, $field)];
+            $query[$key] = ['$gt' => $this->parseDateTime($query, $value, $field)];
         } elseif ('between time' == $exp) {
             // 区间查询
             $value       = is_array($value) ? $value : explode(',', $value);
-            $query[$key] = ['$gte' => $this->parseDateTime($value[0], $field), '$lte' => $this->parseDateTime($value[1], $field)];
+            $query[$key] = ['$gte' => $this->parseDateTime($query, $value[0], $field), '$lte' => $this->parseDateTime($query, $value[1], $field)];
         } elseif ('not between time' == $exp) {
             // 范围查询
             $value       = is_array($value) ? $value : explode(',', $value);
-            $query[$key] = ['$lt' => $this->parseDateTime($value[0], $field), '$gt' => $this->parseDateTime($value[1], $field)];
+            $query[$key] = ['$lt' => $this->parseDateTime($query, $value[0], $field), '$gt' => $this->parseDateTime($query, $value[1], $field)];
         } elseif ('near' == $exp) {
             // 经纬度查询
-            $query[$key] = ['$near' => $this->parseValue($value, $key)];
+            $query[$key] = ['$near' => $this->parseValue($query, $value, $key)];
         } elseif ('size' == $exp) {
             // 元素长度查询
             $query[$key] = ['$size' => intval($value)];
         } else {
             // 普通查询
-            $query[$key] = $this->parseValue($value, $key);
+            $query[$key] = $this->parseValue($query, $value, $key);
         }
         return $query;
     }
@@ -285,10 +292,10 @@ class Builder
      * @param string $key
      * @return string
      */
-    protected function parseDateTime($value, $key)
+    protected function parseDateTime(Query $query, $value, $key)
     {
         // 获取时间字段类型
-        $type = $this->query->getTableInfo('', 'type');
+        $type = $this->connection->getTableInfo('', 'type');
         if (isset($type[$key])) {
             $value = strtotime($value) ?: $value;
             if (preg_match('/(datetime|timestamp)/is', $type[$key])) {
@@ -319,15 +326,20 @@ class Builder
      * @param array     $options 表达式
      * @return BulkWrite
      */
-    public function insert(array $data, $options = [])
+    public function insert(Query $query, $replace = false)
     {
         // 分析并处理数据
-        $data = $this->parseData($data, $options);
+        $options = $query->getOptions();
+
+        $data = $this->parseData($query, $options['data']);
         $bulk = new BulkWrite;
+
         if ($insertId = $bulk->insert($data)) {
             $this->insertId = $insertId;
         }
+
         $this->log('insert', $data, $options);
+
         return $bulk;
     }
 
@@ -338,17 +350,19 @@ class Builder
      * @param array     $options 参数
      * @return BulkWrite
      */
-    public function insertAll($dataSet, $options = [])
+    public function insertAll(Query $query, $dataSet)
     {
-        $bulk = new BulkWrite;
+        $bulk    = new BulkWrite;
+        $options = $query->getOptions();
         foreach ($dataSet as $data) {
             // 分析并处理数据
-            $data = $this->parseData($data, $options);
+            $data = $this->parseData($query, $options['data']);
             if ($insertId = $bulk->insert($data)) {
                 $this->insertId[] = $insertId;
             }
         }
         $this->log('insert', $dataSet, $options);
+
         return $bulk;
     }
 
@@ -359,10 +373,11 @@ class Builder
      * @param array     $options 参数
      * @return BulkWrite
      */
-    public function update($data, $options = [])
+    public function update(Query $query)
     {
-        $data  = $this->parseSet($data, $options);
-        $where = $this->parseWhere($options['where']);
+        $options = $query->getOptions();
+        $data    = $this->parseSet($query, $options['data']);
+        $where   = $this->parseWhere($query, $options['where']);
 
         if (1 == $options['limit']) {
             $updateOptions = ['multi' => false];
@@ -370,8 +385,11 @@ class Builder
             $updateOptions = ['multi' => true];
         }
         $bulk = new BulkWrite;
+
         $bulk->update($where, $data, $updateOptions);
+
         $this->log('update', $data, $where);
+
         return $bulk;
     }
 
@@ -381,17 +399,21 @@ class Builder
      * @param array     $options 参数
      * @return BulkWrite
      */
-    public function delete($options)
+    public function delete(Query $query)
     {
-        $where = $this->parseWhere($options['where']);
-        $bulk  = new BulkWrite;
+        $options = $query->getOptions();
+        $where   = $this->parseWhere($options['where']);
+        $bulk    = new BulkWrite;
+
         if (1 == $options['limit']) {
             $deleteOptions = ['limit' => 1];
         } else {
             $deleteOptions = ['limit' => 0];
         }
+
         $bulk->delete($where, $deleteOptions);
         $this->log('remove', $where, $deleteOptions);
+
         return $bulk;
     }
 
@@ -401,11 +423,15 @@ class Builder
      * @param array $options 参数
      * @return MongoQuery
      */
-    public function select($options)
+    public function select(Query $query)
     {
-        $where = $this->parseWhere($options['where']);
+        $options = $query->getOptions();
+
+        $where = $this->parseWhere($query, $options['where']);
         $query = new MongoQuery($where, $options);
+
         $this->log('find', $where, $options);
+
         return $query;
     }
 
@@ -415,17 +441,22 @@ class Builder
      * @param array $options 参数
      * @return Command
      */
-    public function count($options)
+    public function count(Query $query)
     {
+        $options = $query->getOptions();
+
         $cmd['count'] = $options['table'];
-        $cmd['query'] = $this->parseWhere($options['where']);
+        $cmd['query'] = $this->parseWhere($query, $options['where']);
+
         foreach (['hint', 'limit', 'maxTimeMS', 'skip'] as $option) {
             if (isset($options[$option])) {
                 $cmd[$option] = $options[$option];
             }
         }
+
         $command = new Command($cmd);
         $this->log('cmd', 'count', $cmd);
+
         return $command;
     }
 
@@ -436,11 +467,12 @@ class Builder
      * @param array $extra   指令和字段
      * @return Command
      */
-    public function aggregate($options, $extra)
+    public function aggregate(Query $query, $extra)
     {
+        $options           = $query->getOptions();
         list($fun, $field) = $extra;
         $pipeline          = [
-            ['$match' => (object) $this->parseWhere($options['where'])],
+            ['$match' => (object) $this->parseWhere($query, $options['where'])],
             ['$group' => ['_id' => null, 'aggregate' => ['$' . $fun => '$' . $field]]],
         ];
         $cmd = [
@@ -466,22 +498,26 @@ class Builder
      * @param string    $field 字段名
      * @return Command
      */
-    public function distinct($options, $field)
+    public function distinct(Query $query, $field)
     {
+        $options = $query->getOptions();
+
         $cmd = [
             'distinct' => $options['table'],
             'key'      => $field,
         ];
 
         if (!empty($options['where'])) {
-            $cmd['query'] = $this->parseWhere($options['where']);
+            $cmd['query'] = $this->parseWhere($query, $options['where']);
         }
 
         if (isset($options['maxTimeMS'])) {
             $cmd['maxTimeMS'] = $options['maxTimeMS'];
         }
+
         $command = new Command($cmd);
         $this->log('cmd', 'distinct', $cmd);
+
         return $command;
     }
 
@@ -494,7 +530,9 @@ class Builder
     {
         $cmd     = ['listCollections' => 1];
         $command = new Command($cmd);
+
         $this->log('cmd', 'listCollections', $cmd);
+
         return $command;
     }
 
@@ -503,11 +541,15 @@ class Builder
      * @access public
      * @return Command
      */
-    public function collStats($options)
+    public function collStats(Query $query)
     {
+        $options = $query->getOptions();
+
         $cmd     = ['collStats' => $options['table']];
         $command = new Command($cmd);
+
         $this->log('cmd', 'collStats', $cmd);
+
         return $command;
     }
 
