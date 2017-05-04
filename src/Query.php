@@ -21,11 +21,8 @@ use MongoDB\Driver\Query as MongoQuery;
 use MongoDB\Driver\ReadPreference;
 use MongoDB\Driver\WriteConcern;
 use think\Collection;
-use think\Config;
-use think\Db;
 use think\db\Query as BaseQuery;
 use think\Exception;
-use think\Model;
 
 class Query extends BaseQuery
 {
