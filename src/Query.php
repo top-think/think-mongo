@@ -230,7 +230,10 @@ class Query extends BaseQuery
      */
     public function count($field = null)
     {
+        $this->parseOptions();
+
         $result = $this->cmd('count');
+
         return $result[0]['n'];
     }
 
@@ -243,7 +246,10 @@ class Query extends BaseQuery
      */
     public function aggregate($aggregate, $field)
     {
+        $this->parseOptions();
+
         $result = $this->cmd('aggregate', [$aggregate, $field]);
+
         return isset($result[0]['result'][0]['aggregate']) ? $result[0]['result'][0]['aggregate'] : 0;
     }
 

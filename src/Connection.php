@@ -315,7 +315,7 @@ class Connection
      * @throws ConnectionException
      * @throws RuntimeException
      */
-    public function command(Command $command, $dbName = '', ReadPreference $readPreference = null, $class = false, $typeMap)
+    public function command(Command $command, $dbName = '', ReadPreference $readPreference = null, $class = false, $typeMap = null)
     {
         $this->initConnect(false);
         Db::$queryTimes++;
@@ -1228,8 +1228,7 @@ class Connection
             $command = new Command($command);
         } else {
             // 调用Builder封装的Command对象
-            $options = $query->getOptions();
-            $command = $this->builder->$command($options, $extra);
+            $command = $this->builder->$command($query, $extra);
         }
 
         return $this->command($command, $db);

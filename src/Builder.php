@@ -471,7 +471,12 @@ class Builder
     {
         $options           = $query->getOptions();
         list($fun, $field) = $extra;
-        $pipeline          = [
+
+        if ('id' == $field && $this->connection->getConfig('pk_convert_id')) {
+            $field = '_id';
+        }
+
+        $pipeline = [
             ['$match' => (object) $this->parseWhere($query, $options['where'])],
             ['$group' => ['_id' => null, 'aggregate' => ['$' . $fun => '$' . $field]]],
         ];
