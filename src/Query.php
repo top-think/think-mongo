@@ -1452,7 +1452,7 @@ class Query
      * @throws RuntimeException
      * @throws BulkWriteException
      */
-    public function insert(array $data, $replace = null, $getLastInsID = false)
+    public function insert(array &$data, $replace = null, $getLastInsID = false)
     {
         if (empty($data)) {
             throw new Exception('miss data to insert');

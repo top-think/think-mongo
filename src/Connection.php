@@ -165,6 +165,16 @@ class Connection
     }
 
     /**
+     * 存粹为了适配 tp5 framework 升级到 5.0.8 , 方法不存在的bug
+     * @param $query
+     * @param string $model
+     */
+    public function setQuery($query, $model = 'db')
+    {
+
+    }
+
+    /**
      * 创建指定模型的查询对象
      * @access public
      * @param string $model 模型类名称
