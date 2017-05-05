@@ -1045,6 +1045,17 @@ class Query
     }
 
     /**
+     * 设置软删除字段及条件（暂无支持）
+     * @access public
+     * @param false|string  $field     查询字段
+     * @param mixed         $condition 查询条件
+     * @return $this
+     */
+    public function useSoftDelete($field, $condition = null)
+    {
+    }
+
+    /**
      * 不主动获取数据集
      * @access public
      * @param bool $cursor 是否返回 Cursor 对象

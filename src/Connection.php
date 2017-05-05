@@ -165,6 +165,18 @@ class Connection
     }
 
     /**
+     * 指定当前使用的查询对象
+     * @access public
+     * @param Query $query 查询对象
+     * @return $this
+     */
+    public function setQuery($query, $model = 'db')
+    {
+        $this->query[$model] = $query;
+        return $this;
+    }
+
+    /**
      * 创建指定模型的查询对象
      * @access public
      * @param string $model 模型类名称
@@ -569,9 +581,9 @@ class Connection
             // 主从式采用读写分离
             if ($master) // 主服务器写入
             {
-                if($this->config['is_replica_set']){
+                if ($this->config['is_replica_set']) {
                     return $this->replicaSetConnect();
-                }else{
+                } else {
                     $r = $m;
                 }
             } elseif (is_numeric($this->config['slave_no'])) {
@@ -598,13 +610,13 @@ class Connection
      */
     public function replicaSetConnect()
     {
-        $this->dbName = $this->config['database'];
+        $this->dbName  = $this->config['database'];
         $this->typeMap = $this->config['type_map'];
         if ($this->config['debug']) {
             $startTime = microtime(true);
         }
         $this->config['params']['replicaSet'] = $this->config['database'];
-        $manager = new Manager($this->buildUrl(), $this->config['params']);
+        $manager                              = new Manager($this->buildUrl(), $this->config['params']);
         if ($this->config['debug']) {
             // 记录数据库连接信息
             Log::record('[ DB ] CONNECT:[ UseTime:' . number_format(microtime(true) - $startTime, 6) . 's ] ' . $this->config['dsn'], 'sql');
@@ -618,7 +630,7 @@ class Connection
      */
     private function buildUrl()
     {
-        $url = 'mongodb://' . ($this->config['username'] ? "{$this->config['username']}" : '') . ($this->config['password'] ? ":{$this->config['password']}@" : '');
+        $url      = 'mongodb://' . ($this->config['username'] ? "{$this->config['username']}" : '') . ($this->config['password'] ? ":{$this->config['password']}@" : '');
         $hostList = explode(',', $this->config['hostname']);
         $portList = explode(',', $this->config['hostport']);
         for ($i = 0; $i < count($hostList); $i++) {
