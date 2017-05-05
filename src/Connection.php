@@ -26,7 +26,6 @@ use think\Collection;
 use think\Db;
 use think\Exception;
 use think\Facade;
-use think\Log;
 
 /**
  * Mongo数据库驱动
@@ -152,9 +151,6 @@ class Connection
             // 解析连接参数 支持数组和字符串
             $options = self::parseConfig($config);
 
-            // 记录初始化信息
-            Facade::make('log')->record('[ DB ] INIT mongodb', 'sql');
-
             if (true === $name) {
                 return new static($options);
             } else {
@@ -170,6 +166,7 @@ class Connection
      * @access public
      * @param array         $config 连接参数
      * @param integer       $linkNum 连接序号
+     * @return Manager
      * @throws InvalidArgumentException
      * @throws RuntimeException
      */
@@ -199,7 +196,7 @@ class Connection
 
             if ($config['debug']) {
                 // 记录数据库连接信息
-                $this->logger('[ DB ] CONNECT:[ UseTime:' . number_format(microtime(true) - $startTime, 6) . 's ] ' . $config['dsn']);
+                $this->logger('[ MongoDb ] CONNECT :[ UseTime:' . number_format(microtime(true) - $startTime, 6) . 's ] ' . $config['dsn']);
             }
         }
 
@@ -519,24 +516,20 @@ class Connection
      * @access protected
      * @param string    $sql SQL语句
      * @param float     $runtime SQL运行时间
-     * @param mixed     $explain SQL分析
+     * @param mixed     $options 参数
      * @return bool
      */
-    protected function triggerSql($sql, $runtime, $explain = [])
+    protected function triggerSql($sql, $runtime, $options = [])
     {
         if (!empty(self::$event)) {
             foreach (self::$event as $callback) {
                 if (is_callable($callback)) {
-                    call_user_func_array($callback, [$sql, $runtime, $explain]);
+                    call_user_func_array($callback, [$sql, $runtime, $options]);
                 }
             }
         } else {
             // 未注册监听则记录到日志中
             $this->logger('[ SQL ] ' . $sql . ' [ RunTime:' . $runtime . 's ]');
-
-            if (!empty($explain)) {
-                $this->logger('[ EXPLAIN : ' . var_export($explain, true) . ' ]');
-            }
         }
     }
 
@@ -556,13 +549,14 @@ class Connection
     {
         if (!empty($this->config['debug'])) {
             // 开启数据库调试模式
+            $debug = Facade::make('debug');
             if ($start) {
-                Facade::make('debug')->remark('queryStartTime', 'time');
+                $debug->remark('queryStartTime', 'time');
             } else {
                 // 记录操作结束时间
-                Facade::make('debug')->remark('queryEndTime', 'time');
+                $debug->remark('queryEndTime', 'time');
 
-                $runtime = Facade::make('debug')->getRangeTime('queryStartTime', 'queryEndTime');
+                $runtime = $debug->getRangeTime('queryStartTime', 'queryEndTime');
 
                 $sql = $sql ?: $this->queryStr;
 
@@ -627,14 +621,14 @@ class Connection
      * 连接分布式服务器
      * @access protected
      * @param boolean $master 主服务器
-     * @return PDO
+     * @return Manager
      */
     protected function multiConnect($master = false)
     {
-        $_config = [];
+        $config = [];
         // 分布式数据库配置解析
-        foreach (['username', 'password', 'hostname', 'hostport', 'database', 'dsn', 'charset'] as $name) {
-            $_config[$name] = explode(',', $this->config[$name]);
+        foreach (['username', 'password', 'hostname', 'hostport', 'database', 'dsn'] as $name) {
+            $config[$name] = explode(',', $this->config[$name]);
         }
 
         // 主服务器序号
@@ -654,17 +648,17 @@ class Connection
                 $r = $this->config['slave_no'];
             } else {
                 // 读操作连接从服务器 每次随机连接的数据库
-                $r = floor(mt_rand($this->config['master_num'], count($_config['hostname']) - 1));
+                $r = floor(mt_rand($this->config['master_num'], count($config['hostname']) - 1));
             }
         } else {
             // 读写操作不区分服务器 每次随机连接的数据库
-            $r = floor(mt_rand(0, count($_config['hostname']) - 1));
+            $r = floor(mt_rand(0, count($config['hostname']) - 1));
         }
 
         $dbConfig = [];
 
-        foreach (['username', 'password', 'hostname', 'hostport', 'database', 'dsn', 'charset'] as $name) {
-            $dbConfig[$name] = isset($_config[$name][$r]) ? $_config[$name][$r] : $_config[$name][0];
+        foreach (['username', 'password', 'hostname', 'hostport', 'database', 'dsn'] as $name) {
+            $dbConfig[$name] = isset($config[$name][$r]) ? $config[$name][$r] : $config[$name][0];
         }
 
         return $this->connect($dbConfig, $r);
@@ -689,13 +683,14 @@ class Connection
 
         if ($this->config['debug']) {
             // 记录数据库连接信息
-            $this->logger('[ DB ] CONNECT:[ UseTime:' . number_format(microtime(true) - $startTime, 6) . 's ] ' . $this->config['dsn']);
+            $this->logger('[ MongoDB ] ReplicaSet CONNECT:[ UseTime:' . number_format(microtime(true) - $startTime, 6) . 's ] ' . $this->config['dsn']);
         }
+
         return $manager;
     }
 
     /**
-     * 根据配置信息 生成适用于链接复制集的 URL
+     * 根据配置信息 生成适用于连接复制集的 URL
      * @return string
      */
     private function buildUrl()
@@ -1169,18 +1164,14 @@ class Connection
 
         $guid = md5($tableName);
         if (!isset(self::$info[$guid])) {
-            $mongoQuery = new MongoQuery([]);
+            $mongoQuery = new MongoQuery([], ['limit' => 1]);
 
-            $resultSet = $this->query($tableName, $mongoQuery, null, true, $this->typeMap);
+            $curosr = $this->query($tableName, $mongoQuery, null, true, ['root' => 'array', 'document' => 'array']);
 
-            if (!$resultSet) {
-                $result = [];
-            } else {
-                $result = $resultSet->toArray();
-            }
-
-            $fields = array_keys($result);
-            $type   = [];
+            $resultSet = $cursor->toArray();
+            $result    = isset($resultSet[0]) ? (array) $resultSet[0] : [];
+            $fields    = array_keys($result);
+            $type      = [];
 
             foreach ($result as $key => $val) {
                 // 记录字段类型
@@ -1195,7 +1186,8 @@ class Connection
                 $pk = null;
             }
 
-            $result            = ['fields' => $fields, 'type' => $type, 'pk' => $pk];
+            $result = ['fields' => $fields, 'type' => $type, 'pk' => $pk];
+
             self::$info[$guid] = $result;
         }
 

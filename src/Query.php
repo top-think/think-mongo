@@ -771,7 +771,7 @@ class Query extends BaseQuery
      * @throws RuntimeException
      * @throws BulkWriteException
      */
-    public function insertGetId(array $data, $replace = false, $sequence = null)
+    public function insertGetId(array $data = [], $replace = false, $sequence = null)
     {
         return $this->insert($data, null, true);
     }
