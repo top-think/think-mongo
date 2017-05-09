@@ -6,6 +6,10 @@
         {
             "name": "liu21st",
             "email": "liu21st@gmail.com"
+        },
+        {
+            "name": "noprom",
+            "email": "tyee.noprom@qq.com"
         }
     ],
     "require": {},
