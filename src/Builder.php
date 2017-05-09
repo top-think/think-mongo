@@ -460,6 +460,44 @@ class Builder
     }
 
     /**
+     * 多聚合查询命令, 可以对多个字段进行 group by 操作
+     *
+     * @param array $options 参数
+     * @param array $extra 指令和字段
+     * @return Command
+     */
+    public function multiAggregate($options, $extra)
+    {
+        list($aggregate, $groupBy) = $extra;
+        $groups = ['_id' => []];
+        foreach ($groupBy as $field) {
+            $groups['_id'][$field] = '$' . $field;
+        }
+
+        foreach ($aggregate as $fun => $field) {
+            $groups[$field . '_' . $fun] = ['$' . $fun => '$' . $field];
+        }
+        $pipeline = [
+            ['$match' => (object)$this->parseWhere($options['where'])],
+            ['$group' => $groups],
+        ];
+        $cmd = [
+            'aggregate' => $options['table'],
+            'allowDiskUse' => true,
+            'pipeline' => $pipeline,
+        ];
+
+        foreach (['explain', 'collation', 'bypassDocumentValidation', 'readConcern'] as $option) {
+            if (isset($options[$option])) {
+                $cmd[$option] = $options[$option];
+            }
+        }
+        $command = new Command($cmd);
+        $this->log('group', $cmd);
+        return $command;
+    }
+    
+    /**
      * 生成distinct命令
      * @access public
      * @param array     $options 参数
