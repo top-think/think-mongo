@@ -1,5 +1,5 @@
 {
-    "name": "topthink/think-mongo",
+    "name": "noprom/think-mongo-extend",
     "description": "mongodb driver for thinkphp5",
     "license": "Apache-2.0",
     "authors": [
