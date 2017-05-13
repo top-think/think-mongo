@@ -344,6 +344,7 @@ class Builder
         $options = $query->getOptions();
 
         $data = $this->parseData($query, $options['data']);
+
         $bulk = new BulkWrite;
 
         if ($insertId = $bulk->insert($data)) {
@@ -366,6 +367,7 @@ class Builder
     {
         $bulk    = new BulkWrite;
         $options = $query->getOptions();
+
         foreach ($dataSet as $data) {
             // 分析并处理数据
             $data = $this->parseData($query, $options['data']);
@@ -373,6 +375,7 @@ class Builder
                 $this->insertId[] = $insertId;
             }
         }
+
         $this->log('insert', $dataSet, $options);
 
         return $bulk;
@@ -387,14 +390,16 @@ class Builder
     public function update(Query $query)
     {
         $options = $query->getOptions();
-        $data    = $this->parseSet($query, $options['data']);
-        $where   = $this->parseWhere($query, $options['where']);
+
+        $data  = $this->parseSet($query, $options['data']);
+        $where = $this->parseWhere($query, $options['where']);
 
         if (1 == $options['limit']) {
             $updateOptions = ['multi' => false];
         } else {
             $updateOptions = ['multi' => true];
         }
+
         $bulk = new BulkWrite;
 
         $bulk->update($where, $data, $updateOptions);
@@ -414,7 +419,8 @@ class Builder
     {
         $options = $query->getOptions();
         $where   = $this->parseWhere($options['where']);
-        $bulk    = new BulkWrite;
+
+        $bulk = new BulkWrite;
 
         if (1 == $options['limit']) {
             $deleteOptions = ['limit' => 1];
@@ -423,6 +429,7 @@ class Builder
         }
 
         $bulk->delete($where, $deleteOptions);
+
         $this->log('remove', $where, $deleteOptions);
 
         return $bulk;
