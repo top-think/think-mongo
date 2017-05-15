@@ -10,6 +10,7 @@
 namespace think\mongo;
 
 use MongoDB\BSON\ObjectID;
+use MongoDB\BSON\UTCDateTime;
 use MongoDB\Driver\BulkWrite;
 use MongoDB\Driver\Command;
 use MongoDB\Driver\Cursor;
@@ -2041,15 +2042,13 @@ class Query
             } elseif (!$result) {
                 $result = [];
             }
+            if (!$result) {
+                return [];
+            }
             $fields = array_keys($result);
             $type   = [];
-            foreach ($result as $key => $val) {
-                // 记录字段类型
-                $type[$key] = getType($val);
-                if ('_id' == $key) {
-                    $pk = $key;
-                }
-            }
+            $this->getFieldType($type, $result);
+            if (isset($result['_id'])) $pk = '_id';
             if (!isset($pk)) {
                 // 设置主键
                 $pk = null;
@@ -2058,6 +2057,35 @@ class Query
             self::$info[$guid] = $result;
         }
         return $fetch ? self::$info[$guid][$fetch] : self::$info[$guid];
+    }
+
+    /**
+     * 获取字段类型
+     * @param  array  &$type
+     * @param  array  $data
+     * @param  string $preKey
+     */
+    protected function getFieldType(&$type, $data, $preKey='') {
+        foreach ($data as $key => $val) {
+            $key = $preKey ? $preKey . '.' . $key : $key;
+            // 记录字段类型
+            switch ($val) {
+                case $val instanceof ObjectID:
+                case ($key == '_id'):
+                    $type[$key] = 'ObjectID';
+                    break;
+                case $val instanceof UTCDateTime:
+                case (is_string($val) && preg_match('/^\d{4}-\d{2}-\d{2}[\d\s\:]*$/s', $val)):
+                    $type[$key] = 'UTCDateTime';
+                    break;
+                default:
+                    $type[$key] = getType($val);
+                    if (is_array($val)) {
+                        $this->getFieldType($type, $val, $key);
+                    }
+                    break;
+            }
+        }
     }
 
     /**
