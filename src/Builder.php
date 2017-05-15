@@ -474,8 +474,15 @@ class Builder
             $groups['_id'][$field] = '$' . $field;
         }
 
-        foreach ($aggregate as $fun => $field) {
-            $groups[$field . '_' . $fun] = ['$' . $fun => '$' . $field];
+        // 支持对于一个聚合操作添加多个字段
+        foreach ($aggregate as $fun => $fields) {
+            foreach ($fields as $field) {
+                if ($fun == 'count') {
+                    $groups[$field . '_count'] = ['$sum' => 1];
+                } else {
+                    $groups[$field . '_' . $fun] = ['$' . $fun => '$' . $field];
+                }
+            }
         }
         $pipeline = [
             ['$match' => (object)$this->parseWhere($options['where'])],
