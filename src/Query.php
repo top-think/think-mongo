@@ -494,6 +494,28 @@ class Query
     }
 
     /**
+     * 多聚合操作
+     *
+     * @param array $aggregate 聚合指令, 可以聚合多个参数, 如 ['sum' => 'field1', 'avg' => 'field2']
+     * @param array $groupBy 类似mysql里面的group字段, 可以传入多个字段, 如 ['field_a', 'field_b', 'field_c']
+     * @return array 查询结果
+     */
+    public function multiAggregate($aggregate, $groupBy)
+    {
+        $result = $this->cmd('multiAggregate', [$aggregate, $groupBy]);
+        $result = isset($result[0]['result']) ? $result[0]['result'] : [];
+        foreach ($result as &$row) {
+            if (isset($row['_id']) && !empty($row['_id'])) {
+                foreach ($row['_id'] as $k => $v) {
+                    $row[$k] = $v;
+                }
+                unset($row['_id']);
+            }
+        }
+        return $result;
+    }
+    
+    /**
      * 聚合查询
      * @access public
      * @param string $aggregate 聚合指令
@@ -1044,6 +1066,17 @@ class Query
             $this->options['cache'] = ['key' => $key, 'expire' => $expire, 'tag' => $tag];
         }
         return $this;
+    }
+
+    /**
+     * 设置软删除字段及条件（暂无支持）
+     * @access public
+     * @param false|string  $field     查询字段
+     * @param mixed         $condition 查询条件
+     * @return $this
+     */
+    public function useSoftDelete($field, $condition = null)
+    {
     }
 
     /**
