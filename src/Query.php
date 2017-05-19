@@ -40,7 +40,7 @@ class Query
     // 数据库Builder对象实例
     protected $builder;
     // 当前模型类名称
-    protected $model;
+    protected static $model;
     // 当前数据表名称（含前缀）
     protected $table = '';
     // 当前数据表名称（不含前缀）
@@ -66,7 +66,9 @@ class Query
     {
         $this->connection = $connection ?: Db::connect([], true);
         $this->prefix     = $this->connection->getConfig('prefix');
-        $this->model      = $model;
+        if(empty(self::$model)){
+            self::$model = $model;
+        }
         // 设置当前连接的Builder对象
         $this->setBuilder();
     }
@@ -1724,9 +1726,9 @@ class Query
         }
 
         // 数据列表读取后的处理
-        if (!empty($this->model)) {
+        if (!empty(self::$model)) {
             // 生成模型对象
-            $modelName = $this->model;
+            $modelName = self::$model;
             if (count($resultSet) > 0) {
                 foreach ($resultSet as $key => $result) {
                     /** @var Model $result */
@@ -1874,9 +1876,9 @@ class Query
 
         // 数据处理
         if (!empty($result)) {
-            if (!empty($this->model)) {
+            if (!empty(self::$model)) {
                 // 返回模型对象
-                $model  = $this->model;
+                $model  = self::$model;
                 $result = new $model($result);
                 $result->isUpdate(true, isset($options['where']['$and']) ? $options['where']['$and'] : null);
                 // 关联查询
@@ -1907,8 +1909,8 @@ class Query
      */
     protected function throwNotFound($options = [])
     {
-        if (!empty($this->model)) {
-            throw new ModelNotFoundException('model data Not Found:' . $this->model, $this->model, $options);
+        if (!empty(self::$model)) {
+            throw new ModelNotFoundException('model data Not Found:' . self::$model, self::$model, $options);
         } else {
             throw new DataNotFoundException('table data not Found:' . $options['table'], $options['table'], $options);
         }
