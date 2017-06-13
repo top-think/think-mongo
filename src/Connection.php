@@ -1166,7 +1166,7 @@ class Connection
         if (!isset(self::$info[$guid])) {
             $mongoQuery = new MongoQuery([], ['limit' => 1]);
 
-            $curosr = $this->query($tableName, $mongoQuery, null, true, ['root' => 'array', 'document' => 'array']);
+            $cursor = $this->query($tableName, $mongoQuery, null, true, ['root' => 'array', 'document' => 'array']);
 
             $resultSet = $cursor->toArray();
             $result    = isset($resultSet[0]) ? (array) $resultSet[0] : [];
