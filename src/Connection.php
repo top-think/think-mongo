@@ -152,10 +152,9 @@ class Connection
             $options = self::parseConfig($config);
 
             if (true === $name) {
-                return new static($options);
-            } else {
-                self::$instance[$name] = new static($options);
+                $name = md5(serialize($config));
             }
+            self::$instance[$name] = new static($options);
         }
 
         return self::$instance[$name];
@@ -491,11 +490,11 @@ class Connection
     }
 
     /**
-     * 获取执行的指令
+     * 获取最近执行的指令
      * @access public
      * @return string
      */
-    public function getQueryStr()
+    public function getLastSql()
     {
         return $this->queryStr;
     }
@@ -865,9 +864,9 @@ class Connection
         $writeResult  = $this->execute($options['table'], $bulk, $writeConcern);
 
         // 检测缓存
-        if (isset($key) && Cache::get($key)) {
+        if (isset($key) && Facade::make('cache')->get($key)) {
             // 删除缓存
-            Cache::rm($key);
+            Facade::make('cache')->rm($key);
         }
 
         $result = $writeResult->getModifiedCount();
@@ -933,9 +932,9 @@ class Connection
         $writeResult = $this->execute($options['table'], $bulk, $writeConcern);
 
         // 检测缓存
-        if (isset($key) && Cache::get($key)) {
+        if (isset($key) && Facade::make('cache')->get($key)) {
             // 删除缓存
-            Cache::rm($key);
+            Facade::make('cache')->rm($key);
         }
 
         $result = $writeResult->getDeletedCount();
@@ -995,7 +994,7 @@ class Connection
             // 判断查询缓存
             $cache     = $options['cache'];
             $key       = is_string($cache['key']) ? $cache['key'] : md5(serialize($options));
-            $resultSet = Cache::get($key);
+            $resultSet = Facade::make('cache')->get($key);
         }
 
         if (!$resultSet) {
@@ -1056,7 +1055,7 @@ class Connection
             } elseif (!isset($key)) {
                 $key = is_string($cache['key']) ? $cache['key'] : md5(serialize($options));
             }
-            $result = Cache::get($key);
+            $result = Facade::make('cache')->get($key);
         }
 
         if (false === $result) {
@@ -1210,7 +1209,7 @@ class Connection
             // 判断查询缓存
             $cache  = $options['cache'];
             $key    = is_string($cache['key']) ? $cache['key'] : md5($field . serialize($options));
-            $result = Cache::get($key);
+            $result = Facade::make('cache')->get($key);
         }
 
         if (!$result) {
@@ -1259,7 +1258,7 @@ class Connection
             // 判断查询缓存
             $cache  = $options['cache'];
             $guid   = is_string($cache['key']) ? $cache['key'] : md5($field . serialize($options));
-            $result = Cache::get($guid);
+            $result = Facade::make('cache')->get($guid);
         }
 
         if (!$result) {

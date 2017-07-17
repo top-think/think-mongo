@@ -27,36 +27,6 @@ use think\Exception;
 class Query extends BaseQuery
 {
     /**
-     * 架构函数
-     * @access public
-     */
-    public function __construct(Connection $connection = null)
-    {
-        if (is_null($connection)) {
-            $this->connection = Connection::instance();
-        } else {
-            $this->connection = $connection;
-        }
-
-        $this->prefix = $this->connection->getConfig('prefix');
-    }
-
-    /**
-     * 切换数据库连接
-     * @access public
-     * @param mixed         $config 连接配置
-     * @param bool|string   $name 连接标识 true 强制重新连接
-     * @return $this
-     * @throws Exception
-     */
-    public function connect($config = [], $name = false)
-    {
-        $this->connection = Connection::instance($config, $name);
-
-        return $this;
-    }
-
-    /**
      * 去除某个查询条件
      * @access public
      * @param string $field 查询字段
@@ -126,57 +96,6 @@ class Query extends BaseQuery
     public function mongoExecute($namespace, BulkWrite $bulk, WriteConcern $writeConcern = null)
     {
         return $this->connection->execute($namespace, $bulk, $writeConcern);
-    }
-
-    /**
-     * 获取最近插入的ID
-     * @access public
-     * @param string $sequence 自增序列名
-     * @return string
-     */
-    public function getLastInsID($sequence = null)
-    {
-        return $this->connection->getLastInsID($sequence);
-    }
-
-    /**
-     * 获取最近一次执行的指令
-     * @access public
-     * @return string
-     */
-    public function getLastSql()
-    {
-        return $this->connection->getQueryStr();
-    }
-
-    /**
-     * 得到某个字段的值
-     * @access public
-     * @param string    $field 字段名
-     * @param mixed     $default 默认值
-     * @return mixed
-     */
-    public function value($field, $default = null, $force = false)
-    {
-        $this->parseOptions();
-
-        $result = $this->connection->value($this, $field);
-
-        return false !== $result ? $result : $default;
-    }
-
-    /**
-     * 得到某个列的数组
-     * @access public
-     * @param string $field 字段名 多个字段用逗号分隔
-     * @param string $key 索引
-     * @return array
-     */
-    public function column($field, $key = '')
-    {
-        $this->parseOptions();
-
-        return $this->connection->column($this, $field, $key);
     }
 
     /**
@@ -306,10 +225,12 @@ class Query extends BaseQuery
     public function setInc($field, $step = 1, $lazyTime = 0)
     {
         $condition = !empty($this->options['where']) ? $this->options['where'] : [];
+
         if (empty($condition)) {
             // 没有条件不做任何更新
             throw new Exception('no data to update');
         }
+
         if ($lazyTime > 0) {
             // 延迟写入
             $guid = md5($this->getTable() . '_' . $field . '_' . serialize($condition));
@@ -318,6 +239,7 @@ class Query extends BaseQuery
                 return true; // 等待下次写入
             }
         }
+
         return $this->setField($field, ['$inc', $step]);
     }
 
@@ -333,10 +255,12 @@ class Query extends BaseQuery
     public function setDec($field, $step = 1, $lazyTime = 0)
     {
         $condition = !empty($this->options['where']) ? $this->options['where'] : [];
+
         if (empty($condition)) {
             // 没有条件不做任何更新
             throw new Exception('no data to update');
         }
+
         if ($lazyTime > 0) {
             // 延迟写入
             $guid = md5($this->getTable() . '_' . $field . '_' . serialize($condition));
@@ -345,24 +269,8 @@ class Query extends BaseQuery
                 return true; // 等待下次写入
             }
         }
-        return $this->setField($field, ['$inc', -1 * $step]);
-    }
 
-    /**
-     * 设置数据
-     * @access public
-     * @param mixed $field 字段名或者数据
-     * @param mixed $value 字段值
-     * @return $this
-     */
-    public function data($field, $value = null)
-    {
-        if (is_array($field)) {
-            $this->options['data'] = isset($this->options['data']) ? array_merge($this->options['data'], $field) : $field;
-        } else {
-            $this->options['data'][$field] = $value;
-        }
-        return $this;
+        return $this->setField($field, ['$inc', -1 * $step]);
     }
 
     /**
@@ -733,104 +641,6 @@ class Query extends BaseQuery
         }
 
         return;
-    }
-
-    /**
-     * 插入记录
-     * @access public
-     * @param mixed     $data 数据
-     * @param boolean   $replace      是否replace（目前无效）
-     * @param boolean   $getLastInsID 返回自增主键
-     * @return WriteResult
-     * @throws AuthenticationException
-     * @throws InvalidArgumentException
-     * @throws ConnectionException
-     * @throws RuntimeException
-     * @throws BulkWriteException
-     */
-    public function insert(array $data = [], $replace = null, $getLastInsID = false, $sequence = null)
-    {
-        $this->parseOptions();
-
-        $this->options['data'] = array_merge($this->options['data'], $data);
-
-        return $this->connection->insert($this, $replace, $getLastInsID);
-    }
-
-    /**
-     * 插入记录并获取自增ID
-     * @access public
-     * @param mixed $data 数据
-     * @return integer
-     * @throws AuthenticationException
-     * @throws InvalidArgumentException
-     * @throws ConnectionException
-     * @throws RuntimeException
-     * @throws BulkWriteException
-     */
-    public function insertGetId(array $data = [], $replace = false, $sequence = null)
-    {
-        return $this->insert($data, null, true);
-    }
-
-    /**
-     * 批量插入记录
-     * @access public
-     * @param mixed $dataSet 数据集
-     * @return integer
-     * @throws AuthenticationException
-     * @throws InvalidArgumentException
-     * @throws ConnectionException
-     * @throws RuntimeException
-     * @throws BulkWriteException
-     */
-    public function insertAll(array $dataSet)
-    {
-        $this->parseOptions();
-
-        return $this->connection->insertAll($this, $dataSet);
-    }
-
-    /**
-     * 更新记录
-     * @access public
-     * @param mixed $data 数据
-     * @return int
-     * @throws Exception
-     * @throws AuthenticationException
-     * @throws InvalidArgumentException
-     * @throws ConnectionException
-     * @throws RuntimeException
-     * @throws BulkWriteException
-     */
-    public function update(array $data = [])
-    {
-        $this->parseOptions();
-
-        $this->options['data'] = array_merge($this->options['data'], $data);
-
-        return $this->connection->update($this);
-    }
-
-    /**
-     * 删除记录
-     * @access public
-     * @param array $data 表达式 true 表示强制删除
-     * @return int
-     * @throws Exception
-     * @throws AuthenticationException
-     * @throws InvalidArgumentException
-     * @throws ConnectionException
-     * @throws RuntimeException
-     * @throws BulkWriteException
-     */
-    public function delete($data = null)
-    {
-        $this->parseOptions();
-
-        $this->options['data'] = $data;
-
-        return $this->connection->delete($this);
     }
 
     /**
