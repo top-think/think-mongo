@@ -621,7 +621,7 @@ class Query extends BaseQuery
      */
     public function parsePkWhere($data)
     {
-        $pk = $this->getPk($this->options);
+        $pk = $this->getPk();
 
         if (is_string($pk)) {
             // 根据主键查询
@@ -641,6 +641,17 @@ class Query extends BaseQuery
         }
 
         return;
+    }
+
+    /**
+     * 获取当前数据表的主键
+     * @access public
+     * @param string|array $options 数据表名或者查询参数
+     * @return string|array
+     */
+    public function getPk($options = '')
+    {
+        return $this->pk ?: $this->connection->getConfig('pk');
     }
 
     /**
