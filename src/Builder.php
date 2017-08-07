@@ -478,7 +478,7 @@ class Builder
             $groups[$field . '_' . $fun] = ['$' . $fun => '$' . $field];
         }
         $pipeline = [
-            ['$match' => (object)$this->parseWhere($options['where'])],
+            ['$match' => (object) $this->parseWhere($options['where'])],
             ['$group' => $groups],
         ];
         $cmd = [
