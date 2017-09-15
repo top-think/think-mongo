@@ -119,7 +119,7 @@ class Builder
         $result = [];
         foreach ($data as $key => $val) {
             $item = $this->parseKey($key);
-            if (is_array($val) && isset($val[0]) && in_array($val[0], ['$inc', '$set', '$unset', '$push', '$pushall', '$addtoset', '$pop', '$pull', '$pullall'])) {
+            if (is_array($val) && isset($val[0]) && 0 === strpos($val[0], '$')) {
                 $result[$val[0]][$item] = $this->parseValue($val[1], $key);
             } else {
                 $result['$set'][$item] = $this->parseValue($val, $key);
@@ -469,7 +469,7 @@ class Builder
     public function multiAggregate($options, $extra)
     {
         list($aggregate, $groupBy) = $extra;
-        $groups = ['_id' => []];
+        $groups                    = ['_id' => []];
         foreach ($groupBy as $field) {
             $groups['_id'][$field] = '$' . $field;
         }
@@ -482,9 +482,9 @@ class Builder
             ['$group' => $groups],
         ];
         $cmd = [
-            'aggregate' => $options['table'],
+            'aggregate'    => $options['table'],
             'allowDiskUse' => true,
-            'pipeline' => $pipeline,
+            'pipeline'     => $pipeline,
         ];
 
         foreach (['explain', 'collation', 'bypassDocumentValidation', 'readConcern'] as $option) {
@@ -496,7 +496,7 @@ class Builder
         $this->log('group', $cmd);
         return $command;
     }
-    
+
     /**
      * 生成distinct命令
      * @access public
