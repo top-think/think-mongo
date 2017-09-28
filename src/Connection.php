@@ -23,9 +23,9 @@ use MongoDB\Driver\Query as MongoQuery;
 use MongoDB\Driver\ReadPreference;
 use MongoDB\Driver\WriteConcern;
 use think\Collection;
+use think\Container;
 use think\Db;
 use think\Exception;
-use think\Facade;
 
 /**
  * Mongo数据库驱动
@@ -534,7 +534,7 @@ class Connection
 
     public function logger($log, $type = 'sql')
     {
-        $this->config['debug'] && Facade::make('log')->record($log, $type);
+        $this->config['debug'] && Container::get('log')->record($log, $type);
     }
 
     /**
@@ -548,7 +548,7 @@ class Connection
     {
         if (!empty($this->config['debug'])) {
             // 开启数据库调试模式
-            $debug = Facade::make('debug');
+            $debug = Container::get('debug');
             if ($start) {
                 $debug->remark('queryStartTime', 'time');
             } else {
@@ -864,9 +864,9 @@ class Connection
         $writeResult  = $this->execute($options['table'], $bulk, $writeConcern);
 
         // 检测缓存
-        if (isset($key) && Facade::make('cache')->get($key)) {
+        if (isset($key) && Container::get('cache')->get($key)) {
             // 删除缓存
-            Facade::make('cache')->rm($key);
+            Container::get('cache')->rm($key);
         }
 
         $result = $writeResult->getModifiedCount();
@@ -932,9 +932,9 @@ class Connection
         $writeResult = $this->execute($options['table'], $bulk, $writeConcern);
 
         // 检测缓存
-        if (isset($key) && Facade::make('cache')->get($key)) {
+        if (isset($key) && Container::get('cache')->get($key)) {
             // 删除缓存
-            Facade::make('cache')->rm($key);
+            Container::get('cache')->rm($key);
         }
 
         $result = $writeResult->getDeletedCount();
@@ -994,7 +994,7 @@ class Connection
             // 判断查询缓存
             $cache     = $options['cache'];
             $key       = is_string($cache['key']) ? $cache['key'] : md5(serialize($options));
-            $resultSet = Facade::make('cache')->get($key);
+            $resultSet = Container::get('cache')->get($key);
         }
 
         if (!$resultSet) {
@@ -1055,7 +1055,7 @@ class Connection
             } elseif (!isset($key)) {
                 $key = is_string($cache['key']) ? $cache['key'] : md5(serialize($options));
             }
-            $result = Facade::make('cache')->get($key);
+            $result = Container::get('cache')->get($key);
         }
 
         if (false === $result) {
@@ -1111,7 +1111,7 @@ class Connection
      */
     protected function cacheData($key, $data, $config = [])
     {
-        $cache = Facade::make('cache');
+        $cache = Container::get('cache');
 
         if (isset($config['tag'])) {
             $cache->tag($config['tag'])->set($key, $data, $config['expire']);
@@ -1209,7 +1209,7 @@ class Connection
             // 判断查询缓存
             $cache  = $options['cache'];
             $key    = is_string($cache['key']) ? $cache['key'] : md5($field . serialize($options));
-            $result = Facade::make('cache')->get($key);
+            $result = Container::get('cache')->get($key);
         }
 
         if (!$result) {
@@ -1258,7 +1258,7 @@ class Connection
             // 判断查询缓存
             $cache  = $options['cache'];
             $guid   = is_string($cache['key']) ? $cache['key'] : md5($field . serialize($options));
-            $result = Facade::make('cache')->get($guid);
+            $result = Container::get('cache')->get($guid);
         }
 
         if (!$result) {
@@ -1351,10 +1351,10 @@ class Connection
     private static function parseConfig($config)
     {
         if (empty($config)) {
-            $config = Facade::make('config')->pull('database');
+            $config = Container::get('config')->pull('database');
         } elseif (is_string($config) && false === strpos($config, '/')) {
             // 支持读取配置参数
-            $config = Facade::make('config')->get('database.' . $config);
+            $config = Container::get('config')->get('database.' . $config);
         }
 
         if (is_string($config)) {
