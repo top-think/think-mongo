@@ -184,6 +184,14 @@ class Builder
                 }
             }
         }
+
+        $options = $query->getOptions();
+        if (!empty($options['soft_delete'])) {
+            // 附加软删除条件
+            list($field, $condition) = $options['soft_delete'];
+            $filter['$and'][]        = $this->parseWhereItem($query, $field, $condition);
+        }
+
         return $filter;
     }
 
