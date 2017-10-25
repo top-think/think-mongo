@@ -502,9 +502,11 @@ class Builder
             $field = '_id';
         }
 
+        $group = isset($options['group']) ? '$' . $options['group'] : null;
+
         $pipeline = [
             ['$match' => (object) $this->parseWhere($query, $options['where'])],
-            ['$group' => ['_id' => null, 'aggregate' => ['$' . $fun => '$' . $field]]],
+            ['$group' => ['_id' => $group, 'aggregate' => ['$' . $fun => '$' . $field]]],
         ];
 
         $cmd = [
