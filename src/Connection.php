@@ -1217,10 +1217,6 @@ class Connection
                 $query->removeOption('field');
             }
 
-            if (is_string($field)) {
-                $field = array_map('trim', explode(',', $field));
-            }
-
             $query->setOption('field', $field);
             $query->setOption('limit', 1);
 
@@ -1230,8 +1226,18 @@ class Connection
             $readPreference = isset($options['readPreference']) ? $options['readPreference'] : null;
             $cursor         = $this->query($options['table'], $mongoQuery, $readPreference, true, ['root' => 'array']);
             $resultSet      = $cursor->toArray();
-            $data           = isset($resultSet[0]) ? $resultSet[0] : null;
-            $result         = $data[$field];
+
+            if (!empty($resultSet)) {
+                $data = (array) array_shift($resultSet);
+                if ($this->getConfig('pk_convert_id')) {
+                    // 转换ObjectID 字段
+                    $data['id'] = $data['_id']->__toString();
+                }
+
+                $result = $data[$field];
+            } else {
+                $result = null;
+            }
 
             if (isset($cache)) {
                 // 缓存数据
@@ -1275,7 +1281,6 @@ class Connection
             }
 
             $query->setOption('field', $field);
-            $query->setOption('limit', 1);
 
             $mongoQuery = $this->builder->select($query);
             // 执行查询操作
@@ -1284,13 +1289,19 @@ class Connection
             $resultSet      = $cursor->toArray();
 
             if ($resultSet) {
-                $fields = array_keys($resultSet[0]);
+                $fields = array_keys(get_object_vars($resultSet[0]));
                 $count  = count($fields);
                 $key1   = array_shift($fields);
                 $key2   = $fields ? array_shift($fields) : '';
                 $key    = $key ?: $key1;
 
                 foreach ($resultSet as $val) {
+                    $val = (array) $val;
+                    if ($this->getConfig('pk_convert_id')) {
+                        // 转换ObjectID 字段
+                        $val['id'] = $val['_id']->__toString();
+                        unset($val['_id']);
+                    }
                     $name = $val[$key];
                     if ($name instanceof ObjectID) {
                         $name = $name->__toString();
