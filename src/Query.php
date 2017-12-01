@@ -23,9 +23,25 @@ use MongoDB\Driver\WriteConcern;
 use think\Collection;
 use think\db\Query as BaseQuery;
 use think\Exception;
+use think\mongo\Connection;
 
 class Query extends BaseQuery
 {
+    /**
+     * 架构函数
+     * @access public
+     */
+    public function __construct(Connection $connection = null)
+    {
+        if (is_null($connection)) {
+            $this->connection = Connection::instance();
+        } else {
+            $this->connection = $connection;
+        }
+
+        $this->prefix = $this->connection->getConfig('prefix');
+    }
+
     /**
      * 去除某个查询条件
      * @access public
@@ -325,11 +341,23 @@ class Query extends BaseQuery
         $where = [];
         if (is_null($op) && is_null($condition)) {
             if (is_array($field)) {
-                // 数组批量查询
-                $where = $field;
+                if (key($field) !== 0) {
+                    $where = [];
+                    foreach ($field as $key => $val) {
+                        $where[$key] = !is_scalar($val) ? $val : [$key, '=', $val];
+                    }
+                } else {
+                    // 数组批量查询
+                    $where = $field;
+                }
+
+                if (!empty($where)) {
+                    $this->options['where'][$logic] = isset($this->options['where'][$logic]) ? array_merge($this->options['where'][$logic], $where) : $where;
+                }
+                return;
             } elseif ($field) {
                 // 字符串查询
-                $where[] = ['exp', $field];
+                $where[] = [$fiel, 'null', ''];
             } else {
                 $where = '';
             }
@@ -337,12 +365,12 @@ class Query extends BaseQuery
             $where[$field] = $param;
         } elseif (in_array(strtolower($op), ['null', 'notnull', 'not null'])) {
             // null查询
-            $where[$field] = [$op, ''];
+            $where[$field] = [$field, $op, ''];
         } elseif (is_null($condition)) {
             // 字段相等查询
-            $where[$field] = ['=', $op];
+            $where[$field] = [$field, '=', $op];
         } else {
-            $where[$field] = [$op, $condition];
+            $where[$field] = [$field, $op, $condition];
         }
 
         if (!empty($where)) {
