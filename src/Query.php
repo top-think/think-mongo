@@ -703,13 +703,14 @@ class Query extends BaseQuery
      * @param integer   $count 每次处理的数据数量
      * @param callable  $callback 处理回调方法
      * @param string    $column 分批处理的字段名
+     * @param  string   $order    字段排序
      * @return boolean
      */
-    public function chunk($count, $callback, $column = null)
+    public function chunk($count, $callback, $column = null, $order = 'asc')
     {
         $column    = $column ?: $this->getPk();
         $options   = $this->getOptions();
-        $resultSet = $this->limit($count)->order($column, 'asc')->select();
+        $resultSet = $this->limit($count)->order($column, $order)->select();
 
         while (!empty($resultSet)) {
             if (false === call_user_func($callback, $resultSet)) {
@@ -719,8 +720,8 @@ class Query extends BaseQuery
             $lastId    = is_array($end) ? $end[$column] : $end->$column;
             $resultSet = $this->options($options)
                 ->limit($count)
-                ->where($column, '>', $lastId)
-                ->order($column, 'asc')
+                ->where($column, 'asc' == strtolower($order) ? '>' : '<', $lastId)
+                ->order($column, $order)
                 ->select();
         }
         return true;
@@ -771,7 +772,7 @@ class Query extends BaseQuery
             $options['limit'] = 0;
         }
 
-        foreach (['master', 'fetch_cursor'] as $name) {
+        foreach (['master', 'fetch_sql', 'fetch_cursor'] as $name) {
             if (!isset($options[$name])) {
                 $options[$name] = false;
             }
