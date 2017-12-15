@@ -14,6 +14,7 @@ use MongoDB\BSON\ObjectID;
 use MongoDB\BSON\Regex;
 use MongoDB\Driver\BulkWrite;
 use MongoDB\Driver\Command;
+use MongoDB\Driver\Exception\InvalidArgumentException;
 use MongoDB\Driver\Query as MongoQuery;
 use think\Exception;
 
@@ -69,7 +70,11 @@ class Builder
     protected function parseValue($value, $field = '')
     {
         if ('_id' == $field && 'ObjectID' == $this->connection->getConfig('pk_type') && is_string($value)) {
-            return new ObjectID($value);
+            try {
+                return new ObjectID($value);
+            } catch (InvalidArgumentException $e) {
+                return new ObjectID();
+            }
         }
         return $value;
     }
