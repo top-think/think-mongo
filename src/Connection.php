@@ -809,7 +809,6 @@ class Connection
      * 更新记录
      * @access public
      * @param Query     $query 查询对象
-     * @param mixed     $data 数据
      * @return int
      * @throws Exception
      * @throws AuthenticationException
@@ -818,7 +817,7 @@ class Connection
      * @throws RuntimeException
      * @throws BulkWriteException
      */
-    public function update(Query $query, array $data)
+    public function update(Query $query)
     {
         $options = $query->getOptions();
         $data    = $options['data'];
