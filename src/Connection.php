@@ -1267,8 +1267,8 @@ class Connection
         }
 
         if (!$result) {
-            if (isset($options['field'])) {
-                $query->removeOption('field');
+            if (isset($options['projection'])) {
+                $query->removeOption('projection');
             }
 
             if ($key && '*' != $field) {
@@ -1279,7 +1279,7 @@ class Connection
                 $field = array_map('trim', explode(',', $field));
             }
 
-            $query->setOption('field', $field);
+            $query->field($field);
 
             $mongoQuery = $this->builder->select($query);
             // 执行查询操作
