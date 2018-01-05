@@ -385,8 +385,8 @@ class Query
             $result = Cache::get($guid);
         }
         if (!$result) {
-            if (isset($this->options['field'])) {
-                unset($this->options['field']);
+            if (isset($this->options['projection'])) {
+                unset($this->options['projection']);
             }
             if ($key && '*' != $field) {
                 $field = $key . ',' . $field;
@@ -512,7 +512,7 @@ class Query
         }
         return $result;
     }
-    
+
     /**
      * 聚合查询
      * @access public
