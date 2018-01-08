@@ -441,7 +441,7 @@ class Builder
     public function delete(Query $query)
     {
         $options = $query->getOptions();
-        $where   = $this->parseWhere($options['where']);
+        $where   = $this->parseWhere($query, $options['where']);
 
         $bulk = new BulkWrite;
 
