@@ -393,7 +393,7 @@ class Builder
 
         foreach ($dataSet as $data) {
             // 分析并处理数据
-            $data = $this->parseData($query, $options['data']);
+            $data = $this->parseData($query, $data);
             if ($insertId = $bulk->insert($data)) {
                 $this->insertId[] = $insertId;
             }
