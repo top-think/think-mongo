@@ -183,13 +183,7 @@ class Query extends BaseQuery
 
         $result = $this->cmd('aggregate', [strtolower($aggregate), $field]);
 
-        if (isset($result[0]['aggregate'])) {
-            $value = $result[0]['aggregate'];
-        } elseif (isset($result[0]['result'][0]['aggregate'])) {
-            $value = $result[0]['result'][0]['aggregate'];
-        } else {
-            $value = 0;
-        }
+        $value = isset($result[0]['aggregate']) ? $result[0]['aggregate'] : 0;
 
         if ($force) {
             $value += 0;
