@@ -182,7 +182,14 @@ class Query extends BaseQuery
         $this->parseOptions();
 
         $result = $this->cmd('aggregate', [strtolower($aggregate), $field]);
-        $value  = isset($result[0]['result'][0]['aggregate']) ? $result[0]['result'][0]['aggregate'] : 0;
+
+        if (isset($result[0]['aggregate'])) {
+            $value = $result[0]['aggregate'];
+        } elseif (isset($result[0]['result'][0]['aggregate'])) {
+            $value = $result[0]['result'][0]['aggregate'];
+        } else {
+            $value = 0;
+        }
 
         if ($force) {
             $value += 0;
