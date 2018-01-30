@@ -523,7 +523,7 @@ class Query
     public function aggregate($aggregate, $field)
     {
         $result = $this->cmd('aggregate', [$aggregate, $field]);
-        return isset($result[0]['result'][0]['aggregate']) ? $result[0]['result'][0]['aggregate'] : 0;
+        return isset($result[0]['aggregate']) ? $result[0]['aggregate'] : 0;
     }
 
     /**
