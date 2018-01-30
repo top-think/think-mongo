@@ -23,7 +23,6 @@ use MongoDB\Driver\WriteConcern;
 use think\Collection;
 use think\db\Query as BaseQuery;
 use think\Exception;
-use think\mongo\Connection;
 
 class Query extends BaseQuery
 {
