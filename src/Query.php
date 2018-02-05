@@ -316,7 +316,7 @@ class Query extends BaseQuery
      * @param mixed                 $op 查询表达式
      * @param mixed                 $condition 查询条件
      * @param array                 $param 查询参数
-     * @return void
+     * @return $this
      */
     protected function parseWhereExp($logic, $field, $op, $condition, $param = [])
     {
