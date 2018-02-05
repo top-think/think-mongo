@@ -324,7 +324,7 @@ class Query extends BaseQuery
         $logic = '$' . strtolower($logic);
         if ($field instanceof \Closure) {
             $this->options['where'][$logic][] = is_string($op) ? [$op, $field] : $field;
-            return;
+            return $this;
         }
         $where = [];
         if (is_null($op) && is_null($condition)) {
@@ -342,7 +342,7 @@ class Query extends BaseQuery
                 if (!empty($where)) {
                     $this->options['where'][$logic] = isset($this->options['where'][$logic]) ? array_merge($this->options['where'][$logic], $where) : $where;
                 }
-                return;
+                return $this;
             } elseif ($field) {
                 // 字符串查询
                 $where[] = [$fiel, 'null', ''];
@@ -367,6 +367,7 @@ class Query extends BaseQuery
             }
             $this->options['where'][$logic] = array_merge($this->options['where'][$logic], $where);
         }
+        return $this;
     }
 
     /**
