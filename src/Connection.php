@@ -302,7 +302,7 @@ class Connection
      * @throws ConnectionException
      * @throws RuntimeException
      */
-    public function command(Command $command, $dbName = '', ReadPreference $readPreference = null, $class = false, $typeMap)
+    public function command(Command $command, $dbName = '', ReadPreference $readPreference = null, $class = false, $typeMap = null)
     {
         $this->initConnect(false);
         Db::$queryTimes++;
