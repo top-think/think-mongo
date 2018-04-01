@@ -23,7 +23,6 @@ use MongoDB\Driver\WriteConcern;
 use think\Collection;
 use think\db\Query as BaseQuery;
 use think\Exception;
-use think\mongo\Connection;
 
 class Query extends BaseQuery
 {
@@ -181,8 +180,9 @@ class Query extends BaseQuery
     {
         $this->parseOptions();
 
-        $result = $this->cmd('aggregate', [$aggregate, $field]);
-        $value  = isset($result[0]['result'][0]['aggregate']) ? $result[0]['result'][0]['aggregate'] : 0;
+        $result = $this->cmd('aggregate', [strtolower($aggregate), $field]);
+
+        $value = isset($result[0]['aggregate']) ? $result[0]['aggregate'] : 0;
 
         if ($force) {
             $value += 0;
@@ -192,49 +192,28 @@ class Query extends BaseQuery
     }
 
     /**
-     * MAX查询
-     * @access public
-     * @param string $field   字段名
-     * @param bool   $force   强制转为数字类型
-     * @return float
+     * 多聚合操作
+     *
+     * @param array $aggregate 聚合指令, 可以聚合多个参数, 如 ['sum' => 'field1', 'avg' => 'field2']
+     * @param array $groupBy 类似mysql里面的group字段, 可以传入多个字段, 如 ['field_a', 'field_b', 'field_c']
+     * @return array 查询结果
      */
-    public function max($field, $force = true)
+    public function multiAggregate($aggregate, $groupBy)
     {
-        return $this->aggregate('max', $field, $force);
-    }
+        $this->parseOptions();
 
-    /**
-     * MIN查询
-     * @access public
-     * @param string $field   字段名
-     * @param bool   $force   强制转为数字类型
-     * @return mixed
-     */
-    public function min($field, $force = true)
-    {
-        return $this->aggregate('min', $field, $force);
-    }
+        $result = $this->cmd('multiAggregate', [$aggregate, $groupBy]);
 
-    /**
-     * SUM查询
-     * @access public
-     * @param string $field   字段名
-     * @return float
-     */
-    public function sum($field)
-    {
-        return $this->aggregate('sum', $field);
-    }
+        foreach ($result as &$row) {
+            if (isset($row['_id']) && !empty($row['_id'])) {
+                foreach ($row['_id'] as $k => $v) {
+                    $row[$k] = $v;
+                }
+                unset($row['_id']);
+            }
+        }
 
-    /**
-     * AVG查询
-     * @access public
-     * @param string $field   字段名
-     * @return float
-     */
-    public function avg($field)
-    {
-        return $this->aggregate('avg', $field);
+        return $result;
     }
 
     /**
@@ -337,14 +316,14 @@ class Query extends BaseQuery
      * @param mixed                 $op 查询表达式
      * @param mixed                 $condition 查询条件
      * @param array                 $param 查询参数
-     * @return void
+     * @return $this
      */
     protected function parseWhereExp($logic, $field, $op, $condition, $param = [])
     {
         $logic = '$' . strtolower($logic);
         if ($field instanceof \Closure) {
             $this->options['where'][$logic][] = is_string($op) ? [$op, $field] : $field;
-            return;
+            return $this;
         }
         $where = [];
         if (is_null($op) && is_null($condition)) {
@@ -362,7 +341,7 @@ class Query extends BaseQuery
                 if (!empty($where)) {
                     $this->options['where'][$logic] = isset($this->options['where'][$logic]) ? array_merge($this->options['where'][$logic], $where) : $where;
                 }
-                return;
+                return $this;
             } elseif ($field) {
                 // 字符串查询
                 $where[] = [$fiel, 'null', ''];
@@ -387,6 +366,7 @@ class Query extends BaseQuery
             }
             $this->options['where'][$logic] = array_merge($this->options['where'][$logic], $where);
         }
+        return $this;
     }
 
     /**
