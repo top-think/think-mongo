@@ -391,6 +391,7 @@ class Builder
         $bulk    = new BulkWrite;
         $options = $query->getOptions();
 
+        $this->insertId = [];
         foreach ($dataSet as $data) {
             // 分析并处理数据
             $data = $this->parseData($query, $options['data']);
