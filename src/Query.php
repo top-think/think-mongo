@@ -283,12 +283,20 @@ class Query extends BaseQuery
      * @param integer      $step  增长值
      * @return $this
      */
-    public function inc($field, $step = 1)
+    public function inc($field, $step = 1, $op = 'inc')
     {
         $fields = is_string($field) ? explode(',', $field) : $field;
-        foreach ($fields as $field) {
-            $this->data($field, ['$inc', $step]);
+
+        foreach ($fields as $field => $val) {
+            if (is_numeric($field)) {
+                $field = $val;
+            } else {
+                $step = $val;
+            }
+
+            $this->data($field, ['$' . $op, $step]);
         }
+
         return $this;
     }
 
@@ -301,11 +309,7 @@ class Query extends BaseQuery
      */
     public function dec($field, $step = 1)
     {
-        $fields = is_string($field) ? explode(',', $field) : $field;
-        foreach ($fields as $field) {
-            $this->data($field, ['$inc', -1 * $step]);
-        }
-        return $this;
+        return $this->inc($field, -1 * $step);
     }
 
     /**
@@ -318,7 +322,7 @@ class Query extends BaseQuery
      * @param array                 $param 查询参数
      * @return $this
      */
-    protected function parseWhereExp($logic, $field, $op, $condition, $param = [])
+    protected function parseWhereExp($logic, $field, $op, $condition, array $param = [], $strict = false)
     {
         $logic = '$' . strtolower($logic);
         if ($field instanceof \Closure) {
@@ -326,7 +330,10 @@ class Query extends BaseQuery
             return $this;
         }
         $where = [];
-        if (is_null($op) && is_null($condition)) {
+        if ($strict) {
+            // 使用严格模式查询
+            $where[$field] = [$field, $op, $condition];
+        } elseif (is_null($op) && is_null($condition)) {
             if (is_array($field)) {
                 if (key($field) !== 0) {
                     $where = [];
@@ -344,7 +351,7 @@ class Query extends BaseQuery
                 return $this;
             } elseif ($field) {
                 // 字符串查询
-                $where[] = [$fiel, 'null', ''];
+                $where[] = [$field, 'null', ''];
             } else {
                 $where = '';
             }
