@@ -151,7 +151,7 @@ class Connection
             if ($config['pk_convert_id'] && '_id' == $config['pk']) {
                 $this->config['pk'] = 'id';
             }
-            $host = 'mongodb://' . ($config['username'] ? "{$config['username']}" : '') . ($config['password'] ? ":{$config['password']}@" : '') . $config['hostname'] . ($config['hostport'] ? ":{$config['hostport']}" : '') . '/' . ($config['database'] ? "{$config['database']}" : '');
+            $host = 'mongodb://' . ($config['username'] ? "{$config['username']}" : '') . ($config['password'] ? ":{$config['password']}@" : '') . $config['hostname'] . ($config['hostport'] ? ":{$config['hostport']}" : '');
             if ($config['debug']) {
                 $startTime = microtime(true);
             }
