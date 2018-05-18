@@ -462,7 +462,7 @@ class Builder
             'aggregate'    => $options['table'],
             'allowDiskUse' => true,
             'pipeline'     => $pipeline,
-            'cursor'       => \stdClass,
+            'cursor'       => new \stdClass,
         ];
 
         foreach (['explain', 'collation', 'bypassDocumentValidation', 'readConcern'] as $option) {
