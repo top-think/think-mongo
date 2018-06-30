@@ -125,8 +125,7 @@ class Connection
         if (!empty($config)) {
             $this->config = array_merge($this->config, $config);
         }
-    }
-
+  
     /**
      * 连接数据库方法
      * @access public
