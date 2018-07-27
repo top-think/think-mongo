@@ -692,30 +692,49 @@ class Query extends BaseQuery
     /**
      * 查询数据转换为模型对象
      * @access public
-     * @param array $result     查询数据
-     * @param array $options    查询参数
-     * @param bool  $resultSet  是否为数据集查询
+     * @param  array $result     查询数据
+     * @param  array $options    查询参数
+     * @param  bool  $resultSet  是否为数据集查询
+     * @param  array $withRelationAttr  关联字段获取器
      * @return void
      */
-    protected function resultToModel(&$result, $options = [], $resultSet = false)
+    protected function resultToModel(&$result, $options = [], $resultSet = false, $withRelationAttr = [])
     {
+        // 动态获取器
+        if (!empty($options['with_attr']) && empty($withRelationAttr)) {
+            foreach ($options['with_attr'] as $name => $val) {
+                if (strpos($name, '.')) {
+                    list($relation, $field) = explode('.', $name);
+
+                    $withRelationAttr[$relation][$field] = $val;
+                    unset($options['with_attr'][$name]);
+                }
+            }
+        }
 
         $condition = (!$resultSet && isset($options['where']['$and'])) ? $options['where']['$and'] : null;
         $result    = $this->model->newInstance($result, $condition);
 
+        // 动态获取器
+        if (!empty($options['with_attr'])) {
+            $result->setModelAttrs($options['with_attr']);
+        }
+
         // 关联查询
         if (!empty($options['relation'])) {
-            $result->relationQuery($options['relation']);
+            $result->relationQuery($options['relation'], $withRelationAttr);
         }
 
         // 预载入查询
         if (!$resultSet && !empty($options['with'])) {
-            $result->eagerlyResult($result, $options['with']);
+            $result->eagerlyResult($result, $options['with'], $withRelationAttr);
         }
 
         // 关联统计
         if (!empty($options['with_count'])) {
-            $result->relationCount($result, $options['with_count']);
+            foreach ($options['with_count'] as $val) {
+                $result->relationCount($result, $val[0], $val[1], $val[2]);
+            }
         }
 
     }
