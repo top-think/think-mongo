@@ -22,6 +22,7 @@ use MongoDB\Driver\ReadPreference;
 use MongoDB\Driver\WriteConcern;
 use think\Collection;
 use think\db\Query as BaseQuery;
+use think\db\Where;
 use think\Exception;
 
 class Query extends BaseQuery
@@ -329,6 +330,12 @@ class Query extends BaseQuery
             $this->options['where'][$logic][] = is_string($op) ? [$op, $field] : $field;
             return $this;
         }
+
+        if ($field instanceof Where) {
+            $this->options['where'][$logic] = $field->parse();
+            return $this;
+        }
+
         $where = [];
         if ($strict) {
             // 使用严格模式查询
