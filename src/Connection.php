@@ -390,7 +390,7 @@ class Connection
      */
     private function convertObjectID(&$data)
     {
-        if (isset($data['_id'])) {
+        if (isset($data['_id']) && getType($data['_id']) == 'object') {
             $data['id'] = $data['_id']->__toString();
             unset($data['_id']);
         }
