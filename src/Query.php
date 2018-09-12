@@ -1000,7 +1000,7 @@ class Query
     {
         $config   = array_merge(Config::get('paginate'), $config);
         $listRows = $listRows ?: $config['list_rows'];
-        $class    = strpos($config['type'], '\\') ? $config['type'] : '\\think\\paginator\\driver\\' . ucwords($config['type']);
+        $class    = false !== strpos($config['type'], '\\') ? $config['type'] : '\\think\\paginator\\driver\\' . ucwords($config['type']);
         $page     = isset($config['page']) ? (int) $config['page'] : call_user_func([
             $class,
             'getCurrentPage',
