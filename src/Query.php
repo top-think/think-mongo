@@ -594,7 +594,7 @@ class Query extends BaseQuery
                 list($offset, $length) = explode(',', $offset);
             }
         }
-        $this->options['skip']  = intval($offset);
+        $this->options['skip'] = intval($offset);
         $this->options['limit'] = intval($length);
 
         return $this;
@@ -681,7 +681,11 @@ class Query extends BaseQuery
      */
     public function getPk($options = '')
     {
-        return $this->pk ?: $this->connection->getConfig('pk');
+        $pk = $this->connection->getConfig('pk');
+        if ($this->getConfig('pk_convert_id')) {
+            $pk = 'id';
+        }
+        return $this->pk ? : $pk;
     }
 
     /**
@@ -720,7 +724,7 @@ class Query extends BaseQuery
         }
 
         $condition = (!$resultSet && isset($options['where']['$and'])) ? $options['where']['$and'] : null;
-        $result    = $this->model->newInstance($result, $condition);
+        $result = $this->model->newInstance($result, $condition);
 
         // 动态获取器
         if (!empty($options['with_attr'])) {
@@ -757,16 +761,16 @@ class Query extends BaseQuery
      */
     public function chunk($count, $callback, $column = null, $order = 'asc')
     {
-        $column    = $column ?: $this->getPk();
-        $options   = $this->getOptions();
+        $column = $column ? : $this->getPk();
+        $options = $this->getOptions();
         $resultSet = $this->limit($count)->order($column, $order)->select();
 
         while (!empty($resultSet)) {
             if (false === call_user_func($callback, $resultSet)) {
                 return false;
             }
-            $end       = end($resultSet);
-            $lastId    = is_array($end) ? $end[$column] : $end->$column;
+            $end = end($resultSet);
+            $lastId = is_array($end) ? $end[$column] : $end->$column;
             $resultSet = $this->options($options)
                 ->limit($count)
                 ->where($column, 'asc' == strtolower($order) ? '>' : '<', $lastId)
@@ -830,11 +834,11 @@ class Query extends BaseQuery
         if (isset($options['page'])) {
             // 根据页数计算limit
             list($page, $listRows) = $options['page'];
-            $page                  = $page > 0 ? $page : 1;
-            $listRows              = $listRows > 0 ? $listRows : (is_numeric($options['limit']) ? $options['limit'] : 20);
-            $offset                = $listRows * ($page - 1);
-            $options['skip']       = intval($offset);
-            $options['limit']      = intval($listRows);
+            $page = $page > 0 ? $page : 1;
+            $listRows = $listRows > 0 ? $listRows : (is_numeric($options['limit']) ? $options['limit'] : 20);
+            $offset = $listRows * ($page - 1);
+            $options['skip'] = intval($offset);
+            $options['limit'] = intval($listRows);
         }
 
         $this->options = $options;

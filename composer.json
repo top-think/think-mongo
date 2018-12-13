@@ -1,10 +1,13 @@
 {
     "name": "fooz/think-mongo",
-    "description": "mongodb driver for thinkphp5",
+    "description": "base on think-mongo v2.0.12, add some feature and fix bug detial pls check on github",
     "license": "Apache-2.0",
     "authors": [{
         "name": "liu21st",
         "email": "liu21st@gmail.com"
+    }, {
+        "name": "Alvis",
+        "email": "alvis@1979s.com"
     }],
     "require": {
         "topthink/framework": "~5.1.20"
