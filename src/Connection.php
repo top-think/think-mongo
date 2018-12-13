@@ -829,6 +829,10 @@ class Connection
         $pk = $query->getPk($options);
 
         if (empty($options['where'])) {
+            if ($this->getConfig('pk_convert_id') && $pk == '_id') {
+                $pk = 'id';
+            }
+
             // 如果存在主键数据 则自动作为更新条件
             if (is_string($pk) && isset($data[$pk])) {
                 $where[$pk] = $data[$pk];
