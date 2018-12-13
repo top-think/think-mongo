@@ -424,6 +424,10 @@ class Builder
             $updateOptions = ['multi' => true];
         }
 
+        if (isset($options['upsert']) && $options['upsert'] == true) {
+            $updateOptions['upsert'] = true;
+        }
+
         $bulk = new BulkWrite;
 
         $bulk->update($where, $data, $updateOptions);
