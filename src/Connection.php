@@ -835,7 +835,7 @@ class Connection
 
             // 如果存在主键数据 则自动作为更新条件
             if (is_string($pk) && isset($data[$pk])) {
-                $where[$pk] = $data[$pk];
+                $where[$pk] = [$pk, '=', $data[$pk]];
                 $key        = 'mongo:' . $options['table'] . '|' . $data[$pk];
                 unset($data[$pk]);
             } elseif (is_array($pk)) {
@@ -856,6 +856,7 @@ class Connection
                 throw new Exception('miss update condition');
             } else {
                 $options['where']['$and'] = $where;
+                $query->setOption('where', $options['where']);
             }
         } elseif (!isset($key) && is_string($pk) && isset($options['where']['$and'][$pk])) {
             $key = $this->getCacheKey($options['where']['$and'][$pk], $options);
