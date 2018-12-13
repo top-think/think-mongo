@@ -887,6 +887,8 @@ class Connection
 
             $query->trigger('after_update');
         }
+        
+        $query->setOption('where', []);
 
         return $result;
     }
