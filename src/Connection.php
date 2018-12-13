@@ -616,7 +616,7 @@ class Connection
         if ($this->config['debug']) {
             $startTime = microtime(true);
         }
-        $this->config['params']['replicaSet'] = $this->config['database'];
+       // $this->config['params']['replicaSet'] = $this->config['database'];
         $manager                              = new Manager($this->buildUrl(), $this->config['params']);
         if ($this->config['debug']) {
             // 记录数据库连接信息
@@ -637,7 +637,7 @@ class Connection
         for ($i = 0; $i < count($hostList); $i++) {
             $url = $url . $hostList[$i] . ':' . $portList[0] . ',';
         }
-        return rtrim($url, ",") . '/';
+        return rtrim($url, ",") . ($this->config['database'] ? "/{$this->config['database']}" : '');
     }
 
     /**
