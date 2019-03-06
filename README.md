@@ -1,4 +1,4 @@
-ThinkPHP 5.1 MongoDb驱动
+ThinkPHP 5.2 MongoDb驱动
 ===============
 
 首先安装官方的mongodb扩展：

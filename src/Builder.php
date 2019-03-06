@@ -6,7 +6,7 @@
 // +----------------------------------------------------------------------
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
-
+declare (strict_types = 1);
 namespace think\mongo;
 
 use MongoDB\BSON\Javascript;
@@ -162,6 +162,7 @@ class Builder
 
         $filter = [];
         foreach ($where as $logic => $val) {
+            $logic = '$' . strtolower($logic);
             foreach ($val as $field => $value) {
                 if (is_array($value)) {
                     if (key($value) !== 0) {
@@ -462,14 +463,20 @@ class Builder
     /**
      * 生成Mongo查询对象
      * @access public
-     * @param Query     $query 查询对象
+     * @param  Query $query 查询对象
+     * @param  bool  $one   是否仅获取一个记录
      * @return MongoQuery
      */
-    public function select(Query $query)
+    public function select(Query $query, bool $one = false)
     {
         $options = $query->getOptions();
 
         $where = $this->parseWhere($query, $options['where']);
+
+        if ($one) {
+            $options['limit'] = 1;
+        }
+
         $query = new MongoQuery($where, $options);
 
         $this->log('find', $where, $options);

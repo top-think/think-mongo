@@ -6,7 +6,7 @@
 // +----------------------------------------------------------------------
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
-
+declare (strict_types = 1);
 namespace think\mongo;
 
 use MongoDB\Driver\BulkWrite;
@@ -22,7 +22,6 @@ use MongoDB\Driver\ReadPreference;
 use MongoDB\Driver\WriteConcern;
 use think\Collection;
 use think\db\Query as BaseQuery;
-use think\db\Where;
 use think\Exception;
 
 class Query extends BaseQuery
@@ -43,19 +42,13 @@ class Query extends BaseQuery
     }
 
     /**
-     * 去除某个查询条件
+     * 获取当前的数据库Connection对象
      * @access public
-     * @param string $field 查询字段
-     * @param string $logic 查询逻辑 and or xor
-     * @return $this
+     * @return Connection
      */
-    public function removeWhereField($field, $logic = 'and')
+    public function getConnection(): Connection
     {
-        $logic = '$' . strtoupper($logic);
-        if (isset($this->options['where'][$logic][$field])) {
-            unset($this->options['where'][$logic][$field]);
-        }
-        return $this;
+        return $this->connection;
     }
 
     /**
@@ -72,7 +65,7 @@ class Query extends BaseQuery
      * @throws ConnectionException
      * @throws RuntimeException
      */
-    public function mongoQuery($namespace, MongoQuery $query, ReadPreference $readPreference = null, $class = false, $typeMap = null)
+    public function mongoQuery(string $namespace, MongoQuery $query, ReadPreference $readPreference = null, $class = false, $typeMap = null)
     {
         return $this->connection->query($namespace, $query, $readPreference, $class, $typeMap);
     }
@@ -91,7 +84,7 @@ class Query extends BaseQuery
      * @throws ConnectionException
      * @throws RuntimeException
      */
-    public function command(Command $command, $dbName = '', ReadPreference $readPreference = null, $class = false, $typeMap = null)
+    public function command(Command $command, string $dbName = '', ReadPreference $readPreference = null, $class = false, $typeMap = null)
     {
         return $this->connection->command($command, $dbName, $readPreference, $class, $typeMap);
     }
@@ -109,7 +102,7 @@ class Query extends BaseQuery
      * @throws RuntimeException
      * @throws BulkWriteException
      */
-    public function mongoExecute($namespace, BulkWrite $bulk, WriteConcern $writeConcern = null)
+    public function mongoExecute(string $namespace, BulkWrite $bulk, WriteConcern $writeConcern = null)
     {
         return $this->connection->execute($namespace, $bulk, $writeConcern);
     }
@@ -122,7 +115,7 @@ class Query extends BaseQuery
      * @param string                $db 数据库名
      * @return array
      */
-    public function cmd($command, $extra = null, $db = null)
+    public function cmd($command, $extra = null, string $db = '')
     {
         return $this->connection->cmd($this, $command, $extra, $db);
     }
@@ -133,7 +126,7 @@ class Query extends BaseQuery
      * @param string $field 字段名
      * @return array
      */
-    public function distinct($field)
+    public function getDistinct(string $field)
     {
         $result = $this->cmd('distinct', $field);
         return $result[0]['values'];
@@ -145,13 +138,14 @@ class Query extends BaseQuery
      * @param string  $db 数据库名称 留空为当前数据库
      * @throws Exception
      */
-    public function listCollections($db = '')
+    public function listCollections(string $db = '')
     {
         $cursor = $this->cmd('listCollections', null, $db);
         $result = [];
         foreach ($cursor as $collection) {
             $result[] = $collection['name'];
         }
+
         return $result;
     }
 
@@ -160,7 +154,7 @@ class Query extends BaseQuery
      * @access public
      * @return integer
      */
-    public function count($field = null)
+    public function count(string $field = null): int
     {
         $this->parseOptions();
 
@@ -177,13 +171,13 @@ class Query extends BaseQuery
      * @param bool   $force   强制转为数字类型
      * @return mixed
      */
-    public function aggregate($aggregate, $field, $force = false)
+    public function aggregate(string $aggregate, $field, bool $force = false)
     {
         $this->parseOptions();
 
         $result = $this->cmd('aggregate', [strtolower($aggregate), $field]);
 
-        $value = isset($result[0]['aggregate']) ? $result[0]['aggregate'] : 0;
+        $value = $result[0]['aggregate'] ?? 0;
 
         if ($force) {
             $value += 0;
@@ -195,11 +189,11 @@ class Query extends BaseQuery
     /**
      * 多聚合操作
      *
-     * @param array $aggregate 聚合指令, 可以聚合多个参数, 如 ['sum' => 'field1', 'avg' => 'field2']
-     * @param array $groupBy 类似mysql里面的group字段, 可以传入多个字段, 如 ['field_a', 'field_b', 'field_c']
+     * @param  array $aggregate 聚合指令, 可以聚合多个参数, 如 ['sum' => 'field1', 'avg' => 'field2']
+     * @param  array $groupBy 类似mysql里面的group字段, 可以传入多个字段, 如 ['field_a', 'field_b', 'field_c']
      * @return array 查询结果
      */
-    public function multiAggregate($aggregate, $groupBy)
+    public function multiAggregate(array $aggregate, array $groupBy): array
     {
         $this->parseOptions();
 
@@ -218,85 +212,29 @@ class Query extends BaseQuery
     }
 
     /**
-     * 字段值(延迟)增长
-     * @access public
-     * @param string    $field 字段名
-     * @param integer   $step 增长值
-     * @param integer   $lazyTime 延时时间(s)
-     * @return integer|true
-     * @throws Exception
-     */
-    public function setInc($field, $step = 1, $lazyTime = 0)
-    {
-        $condition = !empty($this->options['where']) ? $this->options['where'] : [];
-
-        if (empty($condition)) {
-            // 没有条件不做任何更新
-            throw new Exception('no data to update');
-        }
-
-        if ($lazyTime > 0) {
-            // 延迟写入
-            $guid = md5($this->getTable() . '_' . $field . '_' . serialize($condition));
-            $step = $this->lazyWrite($guid, $step, $lazyTime);
-            if (empty($step)) {
-                return true; // 等待下次写入
-            }
-        }
-
-        return $this->setField($field, ['$inc', $step]);
-    }
-
-    /**
-     * 字段值（延迟）减少
-     * @access public
-     * @param string    $field 字段名
-     * @param integer   $step 减少值
-     * @param integer   $lazyTime 延时时间(s)
-     * @return integer|true
-     * @throws Exception
-     */
-    public function setDec($field, $step = 1, $lazyTime = 0)
-    {
-        $condition = !empty($this->options['where']) ? $this->options['where'] : [];
-
-        if (empty($condition)) {
-            // 没有条件不做任何更新
-            throw new Exception('no data to update');
-        }
-
-        if ($lazyTime > 0) {
-            // 延迟写入
-            $guid = md5($this->getTable() . '_' . $field . '_' . serialize($condition));
-            $step = $this->lazyWrite($guid, -$step, $lazyTime);
-            if (empty($step)) {
-                return true; // 等待下次写入
-            }
-        }
-
-        return $this->setField($field, ['$inc', -1 * $step]);
-    }
-
-    /**
      * 字段值增长
      * @access public
-     * @param string|array $field 字段名
-     * @param integer      $step  增长值
+     * @param string  $field 字段名
+     * @param integer $step  增长值
+     * @param integer $lazyTime 延时时间(s)
+     * @param string  $op inc/dec
      * @return $this
      */
-    public function inc($field, $step = 1, $op = 'inc')
+    public function inc(string $field, int $step = 1, int $lazyTime = 0, string $op = 'inc')
     {
-        $fields = is_string($field) ? explode(',', $field) : $field;
+        if ($lazyTime > 0) {
+            // 延迟写入
+            $condition = $this->options['where'] ?? [];
 
-        foreach ($fields as $field => $val) {
-            if (is_numeric($field)) {
-                $field = $val;
-            } else {
-                $step = $val;
+            $guid = md5($this->getTable() . '_' . $field . '_' . serialize($condition));
+            $step = $this->connection->lazyWrite($op, $guid, $step, $lazyTime);
+
+            if (false === $step) {
+                return $this;
             }
-
-            $this->data($field, ['$' . $op, $step]);
         }
+
+        $this->data($field, ['$' . $op, $step]);
 
         return $this;
     }
@@ -304,83 +242,14 @@ class Query extends BaseQuery
     /**
      * 字段值减少
      * @access public
-     * @param string|array $field 字段名
-     * @param integer      $step  减少值
+     * @param string  $field 字段名
+     * @param integer $step  减少值
+     * @param integer $lazyTime 延时时间(s)
      * @return $this
      */
-    public function dec($field, $step = 1)
+    public function dec(string $field, int $step = 1, int $lazyTime = 0)
     {
-        return $this->inc($field, -1 * $step);
-    }
-
-    /**
-     * 分析查询表达式
-     * @access public
-     * @param string                $logic 查询逻辑    and or xor
-     * @param string|array|\Closure $field 查询字段
-     * @param mixed                 $op 查询表达式
-     * @param mixed                 $condition 查询条件
-     * @param array                 $param 查询参数
-     * @return $this
-     */
-    protected function parseWhereExp($logic, $field, $op, $condition, array $param = [], $strict = false)
-    {
-        $logic = '$' . strtolower($logic);
-        if ($field instanceof \Closure) {
-            $this->options['where'][$logic][] = is_string($op) ? [$op, $field] : $field;
-            return $this;
-        }
-
-        if ($field instanceof Where) {
-            $this->options['where'][$logic] = $field->parse();
-            return $this;
-        }
-
-        $where = [];
-        if ($strict) {
-            // 使用严格模式查询
-            $where[$field] = [$field, $op, $condition];
-        } elseif (is_null($op) && is_null($condition)) {
-            if (is_array($field)) {
-                if (key($field) !== 0) {
-                    $where = [];
-                    foreach ($field as $key => $val) {
-                        $where[$key] = !is_scalar($val) ? $val : [$key, '=', $val];
-                    }
-                } else {
-                    // 数组批量查询
-                    $where = $field;
-                }
-
-                if (!empty($where)) {
-                    $this->options['where'][$logic] = isset($this->options['where'][$logic]) ? array_merge($this->options['where'][$logic], $where) : $where;
-                }
-                return $this;
-            } elseif ($field) {
-                // 字符串查询
-                $where[] = [$field, 'null', ''];
-            } else {
-                $where = '';
-            }
-        } elseif (is_array($op)) {
-            $where[$field] = $param;
-        } elseif (in_array(strtolower($op), ['null', 'notnull', 'not null'])) {
-            // null查询
-            $where[$field] = [$field, $op, ''];
-        } elseif (is_null($condition)) {
-            // 字段相等查询
-            $where[$field] = [$field, '=', $op];
-        } else {
-            $where[$field] = [$field, $op, $condition];
-        }
-
-        if (!empty($where)) {
-            if (!isset($this->options['where'][$logic])) {
-                $this->options['where'][$logic] = [];
-            }
-            $this->options['where'][$logic] = array_merge($this->options['where'][$logic], $where);
-        }
-        return $this;
+        return $this->inc($field, -1 * $step, $lazyTime);
     }
 
     /**
@@ -389,7 +258,7 @@ class Query extends BaseQuery
      * @param string $collection
      * @return $this
      */
-    public function collection($collection)
+    public function collection(string $collection)
     {
         return $this->table($collection);
     }
@@ -400,7 +269,7 @@ class Query extends BaseQuery
      * @param bool $cursor 是否返回 Cursor 对象
      * @return $this
      */
-    public function fetchCursor($cursor = true)
+    public function fetchCursor(bool $cursor = true)
     {
         $this->options['fetch_cursor'] = $cursor;
         return $this;
@@ -424,7 +293,7 @@ class Query extends BaseQuery
      * @param bool $awaitData
      * @return $this
      */
-    public function awaitData($awaitData)
+    public function awaitData(bool $awaitData)
     {
         $this->options['awaitData'] = $awaitData;
         return $this;
@@ -436,7 +305,7 @@ class Query extends BaseQuery
      * @param integer $batchSize
      * @return $this
      */
-    public function batchSize($batchSize)
+    public function batchSize(int $batchSize)
     {
         $this->options['batchSize'] = $batchSize;
         return $this;
@@ -448,7 +317,7 @@ class Query extends BaseQuery
      * @param bool $exhaust
      * @return $this
      */
-    public function exhaust($exhaust)
+    public function exhaust(bool $exhaust)
     {
         $this->options['exhaust'] = $exhaust;
         return $this;
@@ -460,7 +329,7 @@ class Query extends BaseQuery
      * @param array $modifiers
      * @return $this
      */
-    public function modifiers($modifiers)
+    public function modifiers(array $modifiers)
     {
         $this->options['modifiers'] = $modifiers;
         return $this;
@@ -472,7 +341,7 @@ class Query extends BaseQuery
      * @param bool $noCursorTimeout
      * @return $this
      */
-    public function noCursorTimeout($noCursorTimeout)
+    public function noCursorTimeout(bool $noCursorTimeout)
     {
         $this->options['noCursorTimeout'] = $noCursorTimeout;
         return $this;
@@ -484,7 +353,7 @@ class Query extends BaseQuery
      * @param bool $oplogReplay
      * @return $this
      */
-    public function oplogReplay($oplogReplay)
+    public function oplogReplay(bool $oplogReplay)
     {
         $this->options['oplogReplay'] = $oplogReplay;
         return $this;
@@ -496,7 +365,7 @@ class Query extends BaseQuery
      * @param bool $partial
      * @return $this
      */
-    public function partial($partial)
+    public function partial(bool $partial)
     {
         $this->options['partial'] = $partial;
         return $this;
@@ -508,7 +377,7 @@ class Query extends BaseQuery
      * @param string $maxTimeMS
      * @return $this
      */
-    public function maxTimeMS($maxTimeMS)
+    public function maxTimeMS(string $maxTimeMS)
     {
         $this->options['maxTimeMS'] = $maxTimeMS;
         return $this;
@@ -520,7 +389,7 @@ class Query extends BaseQuery
      * @param array $collation
      * @return $this
      */
-    public function collation($collation)
+    public function collation(array $collation)
     {
         $this->options['collation'] = $collation;
         return $this;
@@ -529,11 +398,14 @@ class Query extends BaseQuery
     /**
      * 设置返回字段
      * @access public
-     * @param array     $field
-     * @param boolean   $except 是否排除
+     * @param  mixed   $field     字段信息
+     * @param  boolean $except    是否排除
+     * @param  string  $tableName 数据表名
+     * @param  string  $prefix    字段前缀
+     * @param  string  $alias     别名前缀
      * @return $this
      */
-    public function field($field, $except = false, $tableName = '', $prefix = '', $alias = '')
+    public function field($field, bool $except = false, string $tableName = '', string $prefix = '', string $alias = '')
     {
         if (is_string($field)) {
             $field = array_map('trim', explode(',', $field));
@@ -559,7 +431,7 @@ class Query extends BaseQuery
      * @param integer $skip
      * @return $this
      */
-    public function skip($skip)
+    public function skip(int $skip)
     {
         $this->options['skip'] = $skip;
         return $this;
@@ -571,7 +443,7 @@ class Query extends BaseQuery
      * @param bool $slaveOk
      * @return $this
      */
-    public function slaveOk($slaveOk)
+    public function slaveOk(bool $slaveOk)
     {
         $this->options['slaveOk'] = $slaveOk;
         return $this;
@@ -580,22 +452,19 @@ class Query extends BaseQuery
     /**
      * 指定查询数量
      * @access public
-     * @param mixed $offset 起始位置
-     * @param mixed $length 查询数量
+     * @param int $offset 起始位置
+     * @param int $length 查询数量
      * @return $this
      */
-    public function limit($offset, $length = null)
+    public function limit(int $offset, int $length = null)
     {
         if (is_null($length)) {
-            if (is_numeric($offset)) {
-                $length = $offset;
-                $offset = 0;
-            } else {
-                list($offset, $length) = explode(',', $offset);
-            }
+            $length = $offset;
+            $offset = 0;
         }
-        $this->options['skip']  = intval($offset);
-        $this->options['limit'] = intval($length);
+
+        $this->options['skip']  = $offset;
+        $this->options['limit'] = $length;
 
         return $this;
     }
@@ -607,7 +476,7 @@ class Query extends BaseQuery
      * @param string                $order
      * @return $this
      */
-    public function order($field, $order = '')
+    public function order($field, string $order = '')
     {
         if (is_array($field)) {
             $this->options['sort'] = $field;
@@ -623,7 +492,7 @@ class Query extends BaseQuery
      * @param bool $tailable
      * @return $this
      */
-    public function tailable($tailable)
+    public function tailable(bool $tailable)
     {
         $this->options['tailable'] = $tailable;
         return $this;
@@ -635,51 +504,18 @@ class Query extends BaseQuery
      * @param WriteConcern $writeConcern
      * @return $this
      */
-    public function writeConcern($writeConcern)
+    public function writeConcern(WriteConcern $writeConcern)
     {
         $this->options['writeConcern'] = $writeConcern;
         return $this;
     }
 
     /**
-     * 把主键值转换为查询条件 支持复合主键
-     * @access public
-     * @param array|string  $data 主键数据
-     * @param mixed         $options 表达式参数
-     * @return void
-     * @throws Exception
-     */
-    public function parsePkWhere($data)
-    {
-        $pk = $this->getPk();
-
-        if (is_string($pk)) {
-            // 根据主键查询
-            if (is_array($data)) {
-                $where[$pk] = isset($data[$pk]) ? [$pk, '=', $data[$pk]] : [$pk, 'in', $data];
-            } else {
-                $where[$pk] = strpos($data, ',') ? [$pk, 'IN', $data] : [$pk, '=', $data];
-            }
-        }
-
-        if (!empty($where)) {
-            if (isset($this->options['where']['$and'])) {
-                $this->options['where']['$and'] = array_merge($this->options['where']['$and'], $where);
-            } else {
-                $this->options['where']['$and'] = $where;
-            }
-        }
-
-        return;
-    }
-
-    /**
      * 获取当前数据表的主键
      * @access public
-     * @param string|array $options 数据表名或者查询参数
      * @return string|array
      */
-    public function getPk($options = '')
+    public function getPk()
     {
         return $this->pk ?: $this->connection->getConfig('pk');
     }
@@ -689,7 +525,7 @@ class Query extends BaseQuery
      * @access public
      * @return Cursor
      */
-    public function getCursor()
+    public function getCursor(): Cursor
     {
         $this->parseOptions();
 
@@ -697,91 +533,11 @@ class Query extends BaseQuery
     }
 
     /**
-     * 查询数据转换为模型对象
-     * @access public
-     * @param  array $result     查询数据
-     * @param  array $options    查询参数
-     * @param  bool  $resultSet  是否为数据集查询
-     * @param  array $withRelationAttr  关联字段获取器
-     * @return void
-     */
-    protected function resultToModel(&$result, $options = [], $resultSet = false, $withRelationAttr = [])
-    {
-        // 动态获取器
-        if (!empty($options['with_attr']) && empty($withRelationAttr)) {
-            foreach ($options['with_attr'] as $name => $val) {
-                if (strpos($name, '.')) {
-                    list($relation, $field) = explode('.', $name);
-
-                    $withRelationAttr[$relation][$field] = $val;
-                    unset($options['with_attr'][$name]);
-                }
-            }
-        }
-
-        $condition = (!$resultSet && isset($options['where']['$and'])) ? $options['where']['$and'] : null;
-        $result    = $this->model->newInstance($result, $condition);
-
-        // 动态获取器
-        if (!empty($options['with_attr'])) {
-            $result->setModelAttrs($options['with_attr']);
-        }
-
-        // 关联查询
-        if (!empty($options['relation'])) {
-            $result->relationQuery($options['relation'], $withRelationAttr);
-        }
-
-        // 预载入查询
-        if (!$resultSet && !empty($options['with'])) {
-            $result->eagerlyResult($result, $options['with'], $withRelationAttr);
-        }
-
-        // 关联统计
-        if (!empty($options['with_count'])) {
-            foreach ($options['with_count'] as $val) {
-                $result->relationCount($result, $val[0], $val[1], $val[2]);
-            }
-        }
-
-    }
-
-    /**
-     * 分批数据返回处理
-     * @access public
-     * @param integer   $count 每次处理的数据数量
-     * @param callable  $callback 处理回调方法
-     * @param string    $column 分批处理的字段名
-     * @param  string   $order    字段排序
-     * @return boolean
-     */
-    public function chunk($count, $callback, $column = null, $order = 'asc')
-    {
-        $column    = $column ?: $this->getPk();
-        $options   = $this->getOptions();
-        $resultSet = $this->limit($count)->order($column, $order)->select();
-
-        while (!empty($resultSet)) {
-            if (false === call_user_func($callback, $resultSet)) {
-                return false;
-            }
-            $end       = end($resultSet);
-            $lastId    = is_array($end) ? $end[$column] : $end->$column;
-            $resultSet = $this->options($options)
-                ->limit($count)
-                ->where($column, 'asc' == strtolower($order) ? '>' : '<', $lastId)
-                ->order($column, $order)
-                ->select();
-        }
-        return true;
-    }
-
-    /**
      * 分析表达式（可用于查询或者写入操作）
-     * @access protected
+     * @access public
      * @return array
      */
-    protected function parseOptions()
+    public function parseOptions(): array
     {
         $options = $this->options;
 
