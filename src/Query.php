@@ -330,7 +330,7 @@ class Query extends BaseQuery
             return $this;
         }
 
-        $logic = strtolower($logic);
+        $logic = '$' . strtolower($logic);
 
         if ($field instanceof Where) {
             $this->options['where'][$logic] = $field->parse();
