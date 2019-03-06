@@ -325,61 +325,34 @@ class Query extends BaseQuery
      */
     protected function parseWhereExp($logic, $field, $op, $condition, array $param = [], $strict = false)
     {
-        $logic = '$' . strtolower($logic);
-        if ($field instanceof \Closure) {
-            $this->options['where'][$logic][] = is_string($op) ? [$op, $field] : $field;
+        if ($field instanceof $this) {
+            $this->options['where'] = $field->getOptions('where');
             return $this;
         }
+
+        $logic = strtolower($logic);
 
         if ($field instanceof Where) {
             $this->options['where'][$logic] = $field->parse();
             return $this;
         }
 
-        $where = [];
         if ($strict) {
             // 使用严格模式查询
-            $where[$field] = [$field, $op, $condition];
-        } elseif (is_null($op) && is_null($condition)) {
-            if (is_array($field)) {
-                if (key($field) !== 0) {
-                    $where = [];
-                    foreach ($field as $key => $val) {
-                        $where[$key] = !is_scalar($val) ? $val : [$key, '=', $val];
-                    }
-                } else {
-                    // 数组批量查询
-                    $where = $field;
-                }
-
-                if (!empty($where)) {
-                    $this->options['where'][$logic] = isset($this->options['where'][$logic]) ? array_merge($this->options['where'][$logic], $where) : $where;
-                }
-                return $this;
-            } elseif ($field) {
-                // 字符串查询
-                $where[] = [$field, 'null', ''];
-            } else {
-                $where = '';
-            }
-        } elseif (is_array($op)) {
-            $where[$field] = $param;
-        } elseif (in_array(strtolower($op), ['null', 'notnull', 'not null'])) {
-            // null查询
-            $where[$field] = [$field, $op, ''];
-        } elseif (is_null($condition)) {
-            // 字段相等查询
-            $where[$field] = [$field, '=', $op];
-        } else {
-            $where[$field] = [$field, $op, $condition];
+            $where = [$field, $op, $condition, $logic];
+        } elseif (is_array($field)) {
+            // 解析数组批量查询
+            return $this->parseArrayWhereItems($field, $logic);
+        } elseif ($field instanceof \Closure) {
+            $where = $field;
+        } elseif (is_string($field)) {
+            $where = $this->parseWhereItem($logic, $field, $op, $condition, $param);
         }
 
         if (!empty($where)) {
-            if (!isset($this->options['where'][$logic])) {
-                $this->options['where'][$logic] = [];
-            }
-            $this->options['where'][$logic] = array_merge($this->options['where'][$logic], $where);
+            $this->options['where'][$logic][] = $where;
         }
+
         return $this;
     }
 
