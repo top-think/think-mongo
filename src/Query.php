@@ -46,7 +46,7 @@ class Query extends BaseQuery
      * @access public
      * @return Connection
      */
-    public function getConnection(): Connection
+    public function getConnection()
     {
         return $this->connection;
     }
@@ -54,47 +54,45 @@ class Query extends BaseQuery
     /**
      * 执行查询 返回数据集
      * @access public
-     * @param string $namespace
-     * @param MongoQuery        $query 查询对象
-     * @param ReadPreference    $readPreference readPreference
-     * @param bool|string       $class 指定返回的数据集对象
-     * @param string|array      $typeMap 指定返回的typeMap
+     * @param  string         $namespace 当前查询的collection
+     * @param  MongoQuery     $query 查询对象
+     * @param  ReadPreference $readPreference readPreference
+     * @param  string|array   $typeMap 指定返回的typeMap
      * @return mixed
      * @throws AuthenticationException
      * @throws InvalidArgumentException
      * @throws ConnectionException
      * @throws RuntimeException
      */
-    public function mongoQuery(string $namespace, MongoQuery $query, ReadPreference $readPreference = null, $class = false, $typeMap = null)
+    public function mongoQuery(string $namespace, MongoQuery $query, ReadPreference $readPreference = null, $typeMap = null)
     {
-        return $this->connection->query($namespace, $query, $readPreference, $class, $typeMap);
+        return $this->connection->query($namespace, $query, $readPreference, $typeMap);
     }
 
     /**
      * 执行指令 返回数据集
      * @access public
-     * @param Command           $command 指令
-     * @param string            $dbName
-     * @param ReadPreference    $readPreference readPreference
-     * @param bool|string       $class 指定返回的数据集对象
-     * @param string|array      $typeMap 指定返回的typeMap
+     * @param  Command        $command 指令
+     * @param  string         $dbName
+     * @param  ReadPreference $readPreference readPreference
+     * @param  string|array   $typeMap 指定返回的typeMap
      * @return mixed
      * @throws AuthenticationException
      * @throws InvalidArgumentException
      * @throws ConnectionException
      * @throws RuntimeException
      */
-    public function command(Command $command, string $dbName = '', ReadPreference $readPreference = null, $class = false, $typeMap = null)
+    public function command(Command $command, string $dbName = '', ReadPreference $readPreference = null, $typeMap = null)
     {
-        return $this->connection->command($command, $dbName, $readPreference, $class, $typeMap);
+        return $this->connection->command($command, $dbName, $readPreference, $typeMap);
     }
 
     /**
      * 执行语句
      * @access public
-     * @param string        $namespace
-     * @param BulkWrite     $bulk
-     * @param WriteConcern  $writeConcern
+     * @param  string        $namespace
+     * @param  BulkWrite     $bulk
+     * @param  WriteConcern  $writeConcern
      * @return int
      * @throws AuthenticationException
      * @throws InvalidArgumentException
@@ -110,12 +108,12 @@ class Query extends BaseQuery
     /**
      * 执行command
      * @access public
-     * @param string|array|object   $command 指令
-     * @param mixed                 $extra 额外参数
-     * @param string                $db 数据库名
+     * @param  string|array|object $command 指令
+     * @param  mixed               $extra 额外参数
+     * @param  string              $db 数据库名
      * @return array
      */
-    public function cmd($command, $extra = null, string $db = '')
+    public function cmd($command, $extra = null, string $db = ''): array
     {
         return $this->connection->cmd($this, $command, $extra, $db);
     }
@@ -123,7 +121,7 @@ class Query extends BaseQuery
     /**
      * 指定distinct查询
      * @access public
-     * @param string $field 字段名
+     * @param  string $field 字段名
      * @return array
      */
     public function getDistinct(string $field)
@@ -135,7 +133,7 @@ class Query extends BaseQuery
     /**
      * 获取数据库的所有collection
      * @access public
-     * @param string  $db 数据库名称 留空为当前数据库
+     * @param  string  $db 数据库名称 留空为当前数据库
      * @throws Exception
      */
     public function listCollections(string $db = '')
@@ -166,9 +164,9 @@ class Query extends BaseQuery
     /**
      * 聚合查询
      * @access public
-     * @param string $aggregate 聚合指令
-     * @param string $field     字段名
-     * @param bool   $force   强制转为数字类型
+     * @param  string $aggregate 聚合指令
+     * @param  string $field     字段名
+     * @param  bool   $force   强制转为数字类型
      * @return mixed
      */
     public function aggregate(string $aggregate, $field, bool $force = false)
@@ -242,9 +240,9 @@ class Query extends BaseQuery
     /**
      * 字段值减少
      * @access public
-     * @param string  $field 字段名
-     * @param integer $step  减少值
-     * @param integer $lazyTime 延时时间(s)
+     * @param  string  $field 字段名
+     * @param  integer $step  减少值
+     * @param  integer $lazyTime 延时时间(s)
      * @return $this
      */
     public function dec(string $field, int $step = 1, int $lazyTime = 0)
@@ -255,24 +253,12 @@ class Query extends BaseQuery
     /**
      * 指定当前操作的collection
      * @access public
-     * @param string $collection
+     * @param  string $collection
      * @return $this
      */
     public function collection(string $collection)
     {
         return $this->table($collection);
-    }
-
-    /**
-     * 不主动获取数据集
-     * @access public
-     * @param bool $cursor 是否返回 Cursor 对象
-     * @return $this
-     */
-    public function fetchCursor(bool $cursor = true)
-    {
-        $this->options['fetch_cursor'] = $cursor;
-        return $this;
     }
 
     /**
@@ -472,8 +458,8 @@ class Query extends BaseQuery
     /**
      * 设置sort
      * @access public
-     * @param array|string|object   $field
-     * @param string                $order
+     * @param  array|string $field
+     * @param  string       $order
      * @return $this
      */
     public function order($field, string $order = '')
@@ -489,7 +475,7 @@ class Query extends BaseQuery
     /**
      * 设置tailable
      * @access public
-     * @param bool $tailable
+     * @param  bool $tailable
      * @return $this
      */
     public function tailable(bool $tailable)
@@ -501,7 +487,7 @@ class Query extends BaseQuery
     /**
      * 设置writeConcern对象
      * @access public
-     * @param WriteConcern $writeConcern
+     * @param  WriteConcern $writeConcern
      * @return $this
      */
     public function writeConcern(WriteConcern $writeConcern)

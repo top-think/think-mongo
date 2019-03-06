@@ -140,12 +140,12 @@ class Connection
     /**
      * 取得数据库连接类实例
      * @access public
-     * @param  array         $config 连接配置
-     * @param  bool|string   $name 连接标识 true 强制重新连接
+     * @param  array       $config 连接配置
+     * @param  bool|string $name 连接标识 true 强制重新连接
      * @return Connection
      * @throws Exception
      */
-    public static function instance(array $config = [], $name = false): Connection
+    public static function instance(array $config = [], $name = false)
     {
         if (false === $name) {
             $name = md5(serialize($config));
@@ -165,8 +165,8 @@ class Connection
     /**
      * 连接数据库方法
      * @access public
-     * @param array         $config 连接参数
-     * @param integer       $linkNum 连接序号
+     * @param  array   $config 连接参数
+     * @param  integer $linkNum 连接序号
      * @return Manager
      * @throws InvalidArgumentException
      * @throws RuntimeException
@@ -195,10 +195,9 @@ class Connection
 
             $this->links[$linkNum] = new Manager($host, $this->config['params']);
 
-            if ($config['debug']) {
-                // 记录数据库连接信息
-                $this->logger('[ MongoDb ] CONNECT :[ UseTime:' . number_format(microtime(true) - $startTime, 6) . 's ] ' . $config['dsn']);
-            }
+            // 记录数据库连接信息
+            $this->logger('[ MongoDb ] CONNECT :[ UseTime:' . number_format(microtime(true) - $startTime, 6) . 's ] ' . $config['dsn']);
+
         }
 
         return $this->links[$linkNum];
@@ -215,6 +214,7 @@ class Connection
         if ('' === $config) {
             return $this->config;
         }
+
         return $this->config[$config] ?? null;
     }
 
@@ -236,17 +236,13 @@ class Connection
      */
     public function getMongo()
     {
-        if (!$this->mongo) {
-            return;
-        } else {
-            return $this->mongo;
-        }
+        return $this->mongo ?: null;
     }
 
     /**
      * 设置/获取当前操作的database
      * @access public
-     * @param string  $db db
+     * @param  string  $db db
      * @throws Exception
      */
     public function db(string $db = null)
@@ -259,20 +255,36 @@ class Connection
     }
 
     /**
-     * 执行查询
+     * 执行查询但只返回Cursor对象
      * @access public
-     * @param string            $namespace 当前查询的collection
-     * @param MongoQuery        $query 查询对象
-     * @param ReadPreference    $readPreference readPreference
-     * @param string|bool       $class 返回的数据集类型
-     * @param string|array      $typeMap 指定返回的typeMap
-     * @return mixed
+     * @param  Query $query 查询对象
+     * @return Cursor
+     */
+    public function getCursor(Query $query): Cursor
+    {
+        // 分析查询表达式
+        $options = $query->parseOptions();
+
+        // 生成MongoQuery对象
+        $mongoQuery = $this->builder->select($query);
+
+        // 执行查询操作
+        return $this->cursor($options['table'], $mongoQuery, $options['readPreference'] ?? null);
+    }
+
+    /**
+     * 执行查询并返回Cursor对象
+     * @access public
+     * @param string         $namespace 当前查询的collection
+     * @param MongoQuery     $query 查询对象
+     * @param ReadPreference $readPreference readPreference
+     * @return Cursor
      * @throws AuthenticationException
      * @throws InvalidArgumentException
      * @throws ConnectionException
      * @throws RuntimeException
      */
-    public function query(string $namespace, MongoQuery $query, ReadPreference $readPreference = null, $class = false, $typeMap = null)
+    public function cursor(string $namespace, MongoQuery $query, ReadPreference $readPreference = null): Cursor
     {
         $this->initConnect(false);
         Db::$queryTimes++;
@@ -292,93 +304,27 @@ class Connection
 
         $this->debug(false);
 
-        return $this->getResult($class, $typeMap);
+        return $this->cursor;
     }
 
     /**
-     * 执行指令
+     * 执行查询
      * @access public
-     * @param Command           $command 指令
-     * @param string            $dbName 当前数据库名
-     * @param ReadPreference    $readPreference readPreference
-     * @param string|bool       $class 返回的数据集类型
-     * @param string|array      $typeMap 指定返回的typeMap
-     * @return mixed
+     * @param  string         $namespace 当前查询的collection
+     * @param  MongoQuery     $query 查询对象
+     * @param  ReadPreference $readPreference readPreference
+     * @param  string|array   $typeMap 指定返回的typeMap
+     * @return array
      * @throws AuthenticationException
      * @throws InvalidArgumentException
      * @throws ConnectionException
      * @throws RuntimeException
      */
-    public function command(Command $command, string $dbName = '', ReadPreference $readPreference = null, $class = false, $typeMap = null)
+    public function query(string $namespace, MongoQuery $query, ReadPreference $readPreference = null, $typeMap = null): array
     {
-        $this->initConnect(false);
-        Db::$queryTimes++;
+        $this->cursor($namespace, $query, $readPreference);
 
-        $this->debug(true);
-
-        $dbName = $dbName ?: $this->dbName;
-
-        if ($this->config['debug'] && !empty($this->queryStr)) {
-            $this->queryStr = 'db.' . $this->queryStr;
-        }
-
-        $this->cursor = $this->mongo->executeCommand($dbName, $command, $readPreference);
-
-        $this->debug(false);
-
-        return $this->getResult($class, $typeMap);
-
-    }
-
-    /**
-     * 获得数据集
-     * @access protected
-     * @param bool|string       $class true 返回Mongo cursor对象 字符串用于指定返回的类名
-     * @param string|array      $typeMap 指定返回的typeMap
-     * @return mixed
-     */
-    protected function getResult($class = '', $typeMap = null)
-    {
-        if (true === $class) {
-            return $this->cursor;
-        }
-
-        // 设置结果数据类型
-        if (is_null($typeMap)) {
-            $typeMap = $this->typeMap;
-        }
-
-        $typeMap = is_string($typeMap) ? ['root' => $typeMap] : $typeMap;
-
-        $this->cursor->setTypeMap($typeMap);
-
-        // 获取数据集
-        $result = $this->cursor->toArray();
-
-        if ($this->getConfig('pk_convert_id')) {
-            // 转换ObjectID 字段
-            foreach ($result as &$data) {
-                $this->convertObjectID($data);
-            }
-        }
-
-        $this->numRows = count($result);
-
-        return $result;
-    }
-
-    /**
-     * ObjectID处理
-     * @access public
-     * @param array     $data
-     * @return void
-     */
-    private function convertObjectID(array &$data)
-    {
-        if (isset($data['_id']) && is_object($data['_id'])) {
-            $data['id'] = $data['_id']->__toString();
-            unset($data['_id']);
-        }
+        return $this->getResult($typeMap);
     }
 
     /**
@@ -421,11 +367,91 @@ class Connection
     }
 
     /**
+     * 执行指令
+     * @access public
+     * @param  Command        $command 指令
+     * @param  string         $dbName 当前数据库名
+     * @param  ReadPreference $readPreference readPreference
+     * @param  string|array   $typeMap 指定返回的typeMap
+     * @return array
+     * @throws AuthenticationException
+     * @throws InvalidArgumentException
+     * @throws ConnectionException
+     * @throws RuntimeException
+     */
+    public function command(Command $command, string $dbName = '', ReadPreference $readPreference = null, $typeMap = null): array
+    {
+        $this->initConnect(false);
+        Db::$queryTimes++;
+
+        $this->debug(true);
+
+        $dbName = $dbName ?: $this->dbName;
+
+        if ($this->config['debug'] && !empty($this->queryStr)) {
+            $this->queryStr = 'db.' . $this->queryStr;
+        }
+
+        $this->cursor = $this->mongo->executeCommand($dbName, $command, $readPreference);
+
+        $this->debug(false);
+
+        return $this->getResult($typeMap);
+
+    }
+
+    /**
+     * 获得数据集
+     * @access protected
+     * @param  string|array      $typeMap 指定返回的typeMap
+     * @return mixed
+     */
+    protected function getResult($typeMap = null): array
+    {
+        // 设置结果数据类型
+        if (is_null($typeMap)) {
+            $typeMap = $this->typeMap;
+        }
+
+        $typeMap = is_string($typeMap) ? ['root' => $typeMap] : $typeMap;
+
+        $this->cursor->setTypeMap($typeMap);
+
+        // 获取数据集
+        $result = $this->cursor->toArray();
+
+        if ($this->getConfig('pk_convert_id')) {
+            // 转换ObjectID 字段
+            foreach ($result as &$data) {
+                $this->convertObjectID($data);
+            }
+        }
+
+        $this->numRows = count($result);
+
+        return $result;
+    }
+
+    /**
+     * ObjectID处理
+     * @access protected
+     * @param  array $data 数据
+     * @return void
+     */
+    protected function convertObjectID(array &$data): void
+    {
+        if (isset($data['_id']) && is_object($data['_id'])) {
+            $data['id'] = $data['_id']->__toString();
+            unset($data['_id']);
+        }
+    }
+
+    /**
      * 数据库日志记录（仅供参考）
      * @access public
-     * @param string $type 类型
-     * @param mixed  $data 数据
-     * @param array  $options 参数
+     * @param  string $type 类型
+     * @param  mixed  $data 数据
+     * @param  array  $options 参数
      * @return void
      */
     public function log(string $type, $data, array $options = [])
@@ -487,10 +513,10 @@ class Connection
     /**
      * 监听SQL执行
      * @access public
-     * @param callable $callback 回调方法
+     * @param  callable $callback 回调方法
      * @return void
      */
-    public function listen(callable $callback)
+    public function listen(callable $callback): void
     {
         self::$event[] = $callback;
     }
@@ -498,12 +524,12 @@ class Connection
     /**
      * 触发SQL事件
      * @access protected
-     * @param string $sql SQL语句
-     * @param string $runtime SQL运行时间
-     * @param mixed  $options 参数
-     * @return bool
+     * @param  string $sql SQL语句
+     * @param  string $runtime SQL运行时间
+     * @param  mixed  $options 参数
+     * @return void
      */
-    protected function triggerSql(string $sql, string $runtime, array $options = [])
+    protected function triggerSql(string $sql, string $runtime, array $options = []): void
     {
         if (!empty(self::$event)) {
             foreach (self::$event as $callback) {
@@ -517,7 +543,7 @@ class Connection
         }
     }
 
-    public function logger(string $log, string $type = 'sql')
+    public function logger(string $log, string $type = 'sql'): void
     {
         $this->config['debug'] && Container::pull('log')->record($log, $type);
     }
@@ -578,7 +604,7 @@ class Connection
      * @param boolean $master 是否主服务器
      * @return void
      */
-    protected function initConnect(bool $master = true)
+    protected function initConnect(bool $master = true): void
     {
         if (!empty($this->config['deploy'])) {
             // 采用分布式数据库
@@ -604,7 +630,7 @@ class Connection
     /**
      * 连接分布式服务器
      * @access protected
-     * @param boolean $master 主服务器
+     * @param  boolean $master 主服务器
      * @return Manager
      */
     protected function multiConnect(bool $master = false): Manager
@@ -665,10 +691,8 @@ class Connection
 
         $manager = new Manager($this->buildUrl(), $this->config['params']);
 
-        if ($this->config['debug']) {
-            // 记录数据库连接信息
-            $this->logger('[ MongoDB ] ReplicaSet CONNECT:[ UseTime:' . number_format(microtime(true) - $startTime, 6) . 's ] ' . $this->config['dsn']);
-        }
+        // 记录数据库连接信息
+        $this->logger('[ MongoDB ] ReplicaSet CONNECT:[ UseTime:' . number_format(microtime(true) - $startTime, 6) . 's ] ' . $this->config['dsn']);
 
         return $manager;
     }
@@ -694,9 +718,9 @@ class Connection
     /**
      * 插入记录
      * @access public
-     * @param Query     $query 查询对象
-     * @param boolean   $replace      是否replace（目前无效）
-     * @param boolean   $getLastInsID 返回自增主键
+     * @param  Query     $query 查询对象
+     * @param  boolean   $replace      是否replace（目前无效）
+     * @param  boolean   $getLastInsID 返回自增主键
      * @return WriteResult
      * @throws AuthenticationException
      * @throws InvalidArgumentException
@@ -736,6 +760,7 @@ class Connection
                 return $lastInsId;
             }
         }
+
         return $result;
     }
 
@@ -764,8 +789,8 @@ class Connection
     /**
      * 批量插入记录
      * @access public
-     * @param Query     $query 查询对象
-     * @param mixed     $dataSet 数据集
+     * @param  Query $query 查询对象
+     * @param  array $dataSet 数据集
      * @return integer
      * @throws AuthenticationException
      * @throws InvalidArgumentException
@@ -773,13 +798,13 @@ class Connection
      * @throws RuntimeException
      * @throws BulkWriteException
      */
-    public function insertAll(Query $query, array $dataSet)
+    public function insertAll(Query $query, array $dataSet = []): int
     {
         // 分析查询表达式
-        $options = $query->getOptions();
+        $options = $query->parseOptions();
 
         if (!is_array(reset($dataSet))) {
-            return false;
+            return 0;
         }
 
         // 生成bulkWrite对象
@@ -793,7 +818,7 @@ class Connection
     /**
      * 更新记录
      * @access public
-     * @param Query     $query 查询对象
+     * @param  Query     $query 查询对象
      * @return int
      * @throws Exception
      * @throws AuthenticationException
@@ -836,7 +861,7 @@ class Connection
     /**
      * 删除记录
      * @access public
-     * @param Query     $query 查询对象
+     * @param  Query     $query 查询对象
      * @return int
      * @throws Exception
      * @throws AuthenticationException
@@ -881,30 +906,10 @@ class Connection
     }
 
     /**
-     * 执行查询但只返回Cursor对象
-     * @access public
-     * @param Query     $query 查询对象
-     * @return Cursor
-     */
-    public function getCursor(Query $query)
-    {
-        // 分析查询表达式
-        $options = $query->parseOptions();
-
-        // 生成MongoQuery对象
-        $mongoQuery = $this->builder->select($query);
-
-        // 执行查询操作
-        $readPreference = $options['readPreference'] ?? null;
-
-        return $this->query($options['table'], $mongoQuery, $readPreference, true, $options['typeMap']);
-    }
-
-    /**
      * 查找记录
      * @access public
-     * @param Query     $query 查询对象
-     * @return Collection|false|Cursor|string
+     * @param  Query $query 查询对象
+     * @return Collection|array
      * @throws ModelNotFoundException
      * @throws DataNotFoundException
      * @throws AuthenticationException
@@ -919,6 +924,7 @@ class Connection
         if (!empty($options['cache'])) {
             $cacheItem = $this->parseCache($query, $options['cache']);
             $resultSet = $this->getCacheData($cacheItem);
+
             if (false !== $resultSet) {
                 return $resultSet;
             }
@@ -933,12 +939,7 @@ class Connection
             // 执行查询操作
             $readPreference = $options['readPreference'] ?? null;
 
-            $resultSet = $this->query($options['table'], $mongoQuery, $readPreference, $options['fetch_cursor'], $options['typeMap']);
-
-            if ($resultSet instanceof Cursor) {
-                // 返回MongoDB\Driver\Cursor对象
-                return $resultSet;
-            }
+            $resultSet = $this->query($options['table'], $mongoQuery, $readPreference, $options['typeMap']);
         }
 
         if (isset($cacheItem) && false !== $resultSet) {
@@ -953,8 +954,8 @@ class Connection
     /**
      * 查找单条记录
      * @access public
-     * @param Query     $query 查询对象
-     * @return array|null|Cursor|string|Model
+     * @param  Query $query 查询对象
+     * @return array
      * @throws ModelNotFoundException
      * @throws DataNotFoundException
      * @throws AuthenticationException
@@ -990,12 +991,7 @@ class Connection
         if (!$result) {
             // 执行查询
             $readPreference = $options['readPreference'] ?? null;
-            $resultSet      = $this->query($options['table'], $mongoQuery, $readPreference, $options['fetch_cursor'], $options['typeMap']);
-
-            if ($resultSet instanceof Cursor) {
-                // 返回MongoDB\Driver\Cursor对象
-                return $resultSet;
-            }
+            $resultSet      = $this->query($options['table'], $mongoQuery, $readPreference, $options['typeMap']);
 
             $result = $resultSet[0] ?? null;
         }
@@ -1074,7 +1070,7 @@ class Connection
         if (!isset(self::$info[$guid])) {
             $mongoQuery = new MongoQuery([], ['limit' => 1]);
 
-            $cursor = $this->query($tableName, $mongoQuery, null, true, ['root' => 'array', 'document' => 'array']);
+            $cursor = $this->cursor($tableName, $mongoQuery);
 
             $resultSet = $cursor->toArray();
             $result    = isset($resultSet[0]) ? (array) $resultSet[0] : [];
@@ -1105,8 +1101,8 @@ class Connection
     /**
      * 得到某个字段的值
      * @access public
-     * @param string    $field 字段名
-     * @param mixed     $default 默认值
+     * @param  string $field 字段名
+     * @param  mixed  $default 默认值
      * @return mixed
      */
     public function value(Query $query, string $field, $default = null)
@@ -1138,7 +1134,7 @@ class Connection
 
         // 执行查询操作
         $readPreference = $options['readPreference'] ?? null;
-        $cursor         = $this->query($options['table'], $mongoQuery, $readPreference, true, ['root' => 'array']);
+        $cursor         = $this->cursor($options['table'], $mongoQuery, $readPreference);
         $resultSet      = $cursor->toArray();
 
         if (!empty($resultSet)) {
@@ -1165,8 +1161,8 @@ class Connection
     /**
      * 得到某个列的数组
      * @access public
-     * @param string $field 字段名 多个字段用逗号分隔
-     * @param string $key 索引
+     * @param  string $field 字段名 多个字段用逗号分隔
+     * @param  string $key 索引
      * @return array
      */
     public function column(Query $query, $field, string $key = '')
@@ -1205,7 +1201,7 @@ class Connection
 
         // 执行查询操作
         $readPreference = $options['readPreference'] ?? null;
-        $cursor         = $this->query($options['table'], $mongoQuery, $readPreference, true, ['root' => 'array']);
+        $cursor         = $this->cursor($options['table'], $mongoQuery, $readPreference);
         $resultSet      = $cursor->toArray();
 
         if ($resultSet) {
@@ -1250,13 +1246,13 @@ class Connection
     /**
      * 执行command
      * @access public
-     * @param Query                 $query      查询对象
-     * @param string|array|object   $command 指令
-     * @param mixed                 $extra 额外参数
-     * @param string                $db 数据库名
+     * @param  Query               $query      查询对象
+     * @param  string|array|object $command 指令
+     * @param  mixed               $extra 额外参数
+     * @param  string              $db 数据库名
      * @return array
      */
-    public function cmd(Query $query, $command, $extra = null, $db = '')
+    public function cmd(Query $query, $command, $extra = null, string $db = ''): array
     {
         if (is_array($command) || is_object($command)) {
             if ($this->getConfig('debug')) {
