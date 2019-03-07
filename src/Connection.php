@@ -43,9 +43,9 @@ class Connection
 
     // 监听回调
     protected static $event = [];
-    /** @var PDO[] 数据库连接ID 支持多个连接 */
+    /** @var Manager[] 数据库连接ID 支持多个连接 */
     protected $links = [];
-    /** @var PDO 当前连接ID */
+    /** @var Manger 当前连接ID */
     protected $linkID;
     protected $linkRead;
     protected $linkWrite;
@@ -57,8 +57,6 @@ class Connection
     protected $error = '';
     // 查询参数
     protected $options = [];
-    // 数据表信息
-    protected static $info = [];
     // 数据库连接参数配置
     protected $config = [
         // 数据库类型
@@ -120,7 +118,7 @@ class Connection
     /**
      * 架构函数 读取数据库配置信息
      * @access public
-     * @param array $config 数据库配置数组
+     * @param  array $config 数据库配置数组
      */
     public function __construct(array $config = [])
     {
@@ -138,28 +136,26 @@ class Connection
     }
 
     /**
-     * 取得数据库连接类实例
-     * @access public
-     * @param  array       $config 连接配置
-     * @param  bool|string $name 连接标识 true 强制重新连接
-     * @return Connection
-     * @throws Exception
+     * 设置当前的数据库Builder对象
+     * @access protected
+     * @param  Builder $builder
+     * @return $this
      */
-    public static function instance(array $config = [], $name = false)
+    protected function setBuilder(Builder $builder)
     {
-        if (false === $name) {
-            $name = md5(serialize($config));
-        }
+        $this->builder = $builder;
 
-        if (true === $name || !isset(self::$instance[$name])) {
-            if (true === $name) {
-                $name = md5(serialize($config));
-            }
+        return $this;
+    }
 
-            self::$instance[$name] = new static($config);
-        }
-
-        return self::$instance[$name];
+    /**
+     * 获取当前的builder实例对象
+     * @access public
+     * @return Builder
+     */
+    public function getBuilder(): Builder
+    {
+        return $this->builder;
     }
 
     /**
@@ -187,13 +183,15 @@ class Connection
                 $this->config['pk'] = 'id';
             }
 
-            $host = 'mongodb://' . ($config['username'] ? "{$config['username']}" : '') . ($config['password'] ? ":{$config['password']}@" : '') . $config['hostname'] . ($config['hostport'] ? ":{$config['hostport']}" : '');
+            if (empty($config['dsn'])) {
+                $config['dsn'] = 'mongodb://' . ($config['username'] ? "{$config['username']}" : '') . ($config['password'] ? ":{$config['password']}@" : '') . $config['hostname'] . ($config['hostport'] ? ":{$config['hostport']}" : '');
+            }
 
             if ($config['debug']) {
                 $startTime = microtime(true);
             }
 
-            $this->links[$linkNum] = new Manager($host, $this->config['params']);
+            $this->links[$linkNum] = new Manager($config['dsn'], $config['params']);
 
             // 记录数据库连接信息
             $this->logger('[ MongoDb ] CONNECT :[ UseTime:' . number_format(microtime(true) - $startTime, 6) . 's ] ' . $config['dsn']);
@@ -705,8 +703,8 @@ class Connection
     {
         $url = 'mongodb://' . ($this->config['username'] ? "{$this->config['username']}" : '') . ($this->config['password'] ? ":{$this->config['password']}@" : '');
 
-        $hostList = explode(',', $this->config['hostname']);
-        $portList = explode(',', $this->config['hostport']);
+        $hostList = is_string($this->config['hostname']) ? explode(',', $this->config['hostname']) : $this->config['hostname'];
+        $portList = is_string($this->config['hostport']) ? explode(',', $this->config['hostport']) : $this->config['hostport'];
 
         for ($i = 0; $i < count($hostList); $i++) {
             $url = $url . $hostList[$i] . ':' . $portList[0] . ',';
@@ -1058,47 +1056,6 @@ class Connection
     }
 
     /**
-     * 获取数据表信息
-     * @access public
-     * @param string $tableName 数据表名 留空自动获取
-     * @param string $fetch 获取信息类型 包括 fields type pk
-     * @return mixed
-     */
-    public function getTableInfo(string $tableName, string $fetch = ''): array
-    {
-        $guid = md5($tableName);
-        if (!isset(self::$info[$guid])) {
-            $mongoQuery = new MongoQuery([], ['limit' => 1]);
-
-            $cursor = $this->cursor($tableName, $mongoQuery);
-
-            $resultSet = $cursor->toArray();
-            $result    = isset($resultSet[0]) ? (array) $resultSet[0] : [];
-            $fields    = array_keys($result);
-            $type      = [];
-
-            foreach ($result as $key => $val) {
-                // 记录字段类型
-                $type[$key] = getType($val);
-                if ('_id' == $key) {
-                    $pk = $key;
-                }
-            }
-
-            if (!isset($pk)) {
-                // 设置主键
-                $pk = null;
-            }
-
-            $result = ['fields' => $fields, 'type' => $type, 'pk' => $pk];
-
-            self::$info[$guid] = $result;
-        }
-
-        return $fetch ? self::$info[$guid][$fetch] : self::$info[$guid];
-    }
-
-    /**
      * 得到某个字段的值
      * @access public
      * @param  string $field 字段名
@@ -1134,15 +1091,10 @@ class Connection
 
         // 执行查询操作
         $readPreference = $options['readPreference'] ?? null;
-        $cursor         = $this->cursor($options['table'], $mongoQuery, $readPreference);
-        $resultSet      = $cursor->toArray();
+        $resultSet      = $this->query($options['table'], $mongoQuery, $readPreference);
 
         if (!empty($resultSet)) {
-            $data = (array) array_shift($resultSet);
-            if ($this->getConfig('pk_convert_id')) {
-                // 转换ObjectID 字段
-                $data['id'] = $data['_id']->__toString();
-            }
+            $data = array_shift($resultSet);
 
             $result = $data[$field];
         } else {
@@ -1174,12 +1126,12 @@ class Connection
         }
 
         if ($key && '*' != $field) {
-            $field = $key . ',' . $field;
+            $projection = $key . ',' . $field;
+        } else {
+            $projection = $field;
         }
 
-        $field = array_map('trim', explode(',', $field));
-
-        $query->field($field);
+        $query->field($projection);
 
         if (!empty($options['cache'])) {
             // 判断查询缓存
@@ -1201,35 +1153,12 @@ class Connection
 
         // 执行查询操作
         $readPreference = $options['readPreference'] ?? null;
-        $cursor         = $this->cursor($options['table'], $mongoQuery, $readPreference);
-        $resultSet      = $cursor->toArray();
+        $resultSet      = $this->query($options['table'], $mongoQuery, $readPreference);
 
-        if ($resultSet) {
-            $fields = array_keys(get_object_vars($resultSet[0]));
-            $count  = count($fields);
-            $key1   = array_shift($fields);
-            $key2   = $fields ? array_shift($fields) : '';
-            $key    = $key ?: $key1;
-
-            foreach ($resultSet as $val) {
-                $val = (array) $val;
-                if ($this->getConfig('pk_convert_id')) {
-                    // 转换ObjectID 字段
-                    $val['id'] = $val['_id']->__toString();
-                    unset($val['_id']);
-                }
-                $name = $val[$key];
-                if ($name instanceof ObjectID) {
-                    $name = $name->__toString();
-                }
-                if (2 == $count) {
-                    $result[$name] = $val[$key2];
-                } elseif (1 == $count) {
-                    $result[$name] = $val[$key1];
-                } else {
-                    $result[$name] = $val;
-                }
-            }
+        if (('*' == $field || strpos($field, ',')) && $key) {
+            $result = array_column($resultSet, null, $key);
+        } elseif (!empty($resultSet)) {
+            $result = array_column($resultSet, $field, $key);
         } else {
             $result = [];
         }
@@ -1269,27 +1198,16 @@ class Connection
         return $this->command($command, $db);
     }
 
-    /**
-     * 获取数据表的主键
-     * @access public
-     * @param string $tableName 数据表名
-     * @return string|array
-     */
-    public function getPk(string $tableName)
-    {
-        return $this->getTableInfo($tableName, 'pk');
-    }
-
     // 获取当前数据表字段信息
     public function getTableFields(string $tableName)
     {
-        return $this->getTableInfo($tableName, 'fields');
+        return [];
     }
 
     // 获取当前数据表字段类型
     public function getFieldsType(string $tableName)
     {
-        return $this->getTableInfo($tableName, 'type');
+        return [];
     }
 
     /**
