@@ -22,10 +22,11 @@ use MongoDB\Driver\Manager;
 use MongoDB\Driver\Query as MongoQuery;
 use MongoDB\Driver\ReadPreference;
 use MongoDB\Driver\WriteConcern;
+use think\Cache;
 use think\Collection;
-use think\Container;
 use think\Db;
 use think\Exception;
+use think\Log;
 
 /**
  * Mongo数据库驱动
@@ -116,11 +117,25 @@ class Connection
     protected $cache;
 
     /**
+     * Db对象
+     * @var Db
+     */
+    protected $db;
+
+    /**
+     * 日志对象
+     * @var Log
+     */
+    protected $log;
+
+    /**
      * 架构函数 读取数据库配置信息
      * @access public
-     * @param  array $config 数据库配置数组
+     * @param Cache $cache 缓存对象
+     * @param Log   $log 日志对象
+     * @param array $config 数据库配置数组
      */
-    public function __construct(array $config = [])
+    public function __construct(Cache $cache, Log $log, array $config = [])
     {
         if (!class_exists('\MongoDB\Driver\Manager')) {
             throw new Exception('require mongodb > 1.0');
@@ -132,7 +147,18 @@ class Connection
 
         $this->builder = new Builder($this);
 
-        $this->cache = Container::pull('cache');
+        $this->cache = $cache;
+        $this->log   = $log;
+    }
+
+    /**
+     * 获取当前连接器类对应的Query类
+     * @access public
+     * @return string
+     */
+    public function getQueryClass(): string
+    {
+        return $this->getConfig('query') ?: Query::class;
     }
 
     /**
@@ -156,6 +182,19 @@ class Connection
     public function getBuilder(): Builder
     {
         return $this->builder;
+    }
+
+    /**
+     * 设置当前的数据库Db对象
+     * @access public
+     * @param Db $db
+     * @return $this
+     */
+    public function setDb(Db $db)
+    {
+        $this->db = $db;
+
+        return $this;
     }
 
     /**
@@ -285,7 +324,7 @@ class Connection
     public function cursor(string $namespace, MongoQuery $query, ReadPreference $readPreference = null): Cursor
     {
         $this->initConnect(false);
-        Db::$queryTimes++;
+        $this->db->updateQueryTimes();
 
         if (false === strpos($namespace, '.')) {
             $namespace = $this->dbName . '.' . $namespace;
@@ -342,7 +381,7 @@ class Connection
     public function execute(string $namespace, BulkWrite $bulk, WriteConcern $writeConcern = null)
     {
         $this->initConnect(true);
-        Db::$queryTimes++;
+        $this->db->updateQueryTimes();
 
         if (false === strpos($namespace, '.')) {
             $namespace = $this->dbName . '.' . $namespace;
@@ -380,7 +419,7 @@ class Connection
     public function command(Command $command, string $dbName = '', ReadPreference $readPreference = null, $typeMap = null): array
     {
         $this->initConnect(false);
-        Db::$queryTimes++;
+        $this->db->updateQueryTimes();
 
         $this->debug(true);
 
@@ -509,41 +548,37 @@ class Connection
     }
 
     /**
-     * 监听SQL执行
-     * @access public
-     * @param  callable $callback 回调方法
-     * @return void
-     */
-    public function listen(callable $callback): void
-    {
-        self::$event[] = $callback;
-    }
-
-    /**
      * 触发SQL事件
      * @access protected
      * @param  string $sql SQL语句
      * @param  string $runtime SQL运行时间
      * @param  mixed  $options 参数
+     * @param  bool   $master  主从标记
      * @return void
      */
-    protected function triggerSql(string $sql, string $runtime, array $options = []): void
+    protected function triggerSql(string $sql, string $runtime, array $options = [], bool $master = false): void
     {
         if (!empty(self::$event)) {
             foreach (self::$event as $callback) {
                 if (is_callable($callback)) {
-                    call_user_func_array($callback, [$sql, $runtime, $options]);
+                    call_user_func_array($callback, [$sql, $runtime, $options, $master]);
                 }
             }
         } else {
             // 未注册监听则记录到日志中
-            $this->logger('[ SQL ] ' . $sql . ' [ RunTime:' . $runtime . 's ]');
+            if ($this->config['deploy']) {
+                // 分布式记录当前操作的主从
+                $master = $master ? 'master|' : 'slave|';
+            } else {
+                $master = '';
+            }
+            $this->logger('[ SQL ] ' . $sql . ' [' . $master . ' RunTime:' . $runtime . 's ]');
         }
     }
 
     public function logger(string $log, string $type = 'sql'): void
     {
-        $this->config['debug'] && Container::pull('log')->record($log, $type);
+        $this->config['debug'] && $this->log->record($log, $type);
     }
 
     /**
@@ -551,25 +586,23 @@ class Connection
      * @access protected
      * @param boolean $start 调试开始标记 true 开始 false 结束
      * @param string  $sql 执行的SQL语句 留空自动获取
+     * @param bool    $master  主从标记
      * @return void
      */
-    protected function debug(bool $start, string $sql = '')
+    protected function debug(bool $start, string $sql = '', bool $master = false)
     {
         if (!empty($this->config['debug'])) {
             // 开启数据库调试模式
-            $debug = Container::pull('debug');
             if ($start) {
-                $debug->remark('queryStartTime', 'time');
+                $this->queryStartTime = microtime(true);
             } else {
                 // 记录操作结束时间
-                $debug->remark('queryEndTime', 'time');
-
-                $runtime = $debug->getRangeTime('queryStartTime', 'queryEndTime');
+                $runtime = number_format((microtime(true) - $this->queryStartTime), 6);
 
                 $sql = $sql ?: $this->queryStr;
 
                 // SQL监听
-                $this->triggerSql($sql, $runtime, $this->options);
+                $this->triggerSql($sql, $runtime, $this->options, $master);
             }
         }
     }
@@ -717,7 +750,6 @@ class Connection
      * 插入记录
      * @access public
      * @param  Query     $query 查询对象
-     * @param  boolean   $replace      是否replace（目前无效）
      * @param  boolean   $getLastInsID 返回自增主键
      * @return WriteResult
      * @throws AuthenticationException
@@ -726,7 +758,7 @@ class Connection
      * @throws RuntimeException
      * @throws BulkWriteException
      */
-    public function insert(Query $query, bool $replace = null, bool $getLastInsID = false)
+    public function insert(Query $query, bool $getLastInsID = false)
     {
         // 分析查询表达式
         $options = $query->parseOptions();
@@ -736,7 +768,7 @@ class Connection
         }
 
         // 生成bulk对象
-        $bulk         = $this->builder->insert($query, $replace);
+        $bulk         = $this->builder->insert($query);
         $writeConcern = $options['writeConcern'] ?? null;
         $writeResult  = $this->execute($options['table'], $bulk, $writeConcern);
         $result       = $writeResult->getInsertedCount();
@@ -752,7 +784,7 @@ class Connection
 
             $query->setOption('data', $data);
 
-            $query->trigger('after_insert');
+            $this->db->trigger('after_insert', $query);
 
             if ($getLastInsID) {
                 return $lastInsId;
@@ -850,7 +882,7 @@ class Connection
         $result = $writeResult->getModifiedCount();
 
         if ($result) {
-            $query->trigger('after_update');
+            $this->db->trigger('after_update', $query);
         }
 
         return $result;
@@ -897,7 +929,7 @@ class Connection
         $result = $writeResult->getDeletedCount();
 
         if ($result) {
-            $query->trigger('after_delete');
+            $this->db->trigger('after_delete', $query);
         }
 
         return $result;
@@ -931,7 +963,7 @@ class Connection
         // 生成MongoQuery对象
         $mongoQuery = $this->builder->select($query);
 
-        $resultSet = $query->trigger('before_select');
+        $resultSet = $this->db->trigger('before_select', $query);
 
         if (!$resultSet) {
             // 执行查询操作
@@ -984,7 +1016,7 @@ class Connection
         $mongoQuery = $this->builder->select($query, true);
 
         // 事件回调
-        $result = $query->trigger('before_find');
+        $result = $this->db->trigger('before_find', $query);
 
         if (!$result) {
             // 执行查询
@@ -1070,7 +1102,7 @@ class Connection
             $query->removeOption('projection');
         }
 
-        $query->field($field);
+        $query->setOption('projection', (array) $field);
 
         if (!empty($options['cache'])) {
             $cacheItem = $this->parseCache($query, $options['cache']);
@@ -1084,7 +1116,7 @@ class Connection
         $mongoQuery = $this->builder->select($query, true);
 
         if (isset($options['projection'])) {
-            $query->field($options['projection']);
+            $query->setOption('projection', $options['projection']);
         } else {
             $query->removeOption('projection');
         }
@@ -1131,7 +1163,7 @@ class Connection
             $projection = $field;
         }
 
-        $query->field($projection);
+        $query->setOption('projection', $projection);
 
         if (!empty($options['cache'])) {
             // 判断查询缓存
@@ -1146,7 +1178,7 @@ class Connection
         $mongoQuery = $this->builder->select($query);
 
         if (isset($options['projection'])) {
-            $query->field($options['projection']);
+            $query->setOption('projection', $options['projection']);
         } else {
             $query->removeOption('projection');
         }

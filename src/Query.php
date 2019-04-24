@@ -29,14 +29,11 @@ class Query extends BaseQuery
     /**
      * 架构函数
      * @access public
+     * @param Connection $connection 数据库连接对象
      */
-    public function __construct(Connection $connection = null)
+    public function __construct(Connection $connection)
     {
-        if (is_null($connection)) {
-            $this->connection = Connection::instance();
-        } else {
-            $this->connection = $connection;
-        }
+        $this->connection = $connection;
 
         $this->prefix = $this->connection->getConfig('prefix');
     }
@@ -213,12 +210,12 @@ class Query extends BaseQuery
      * 字段值增长
      * @access public
      * @param string  $field 字段名
-     * @param integer $step  增长值
+     * @param float   $step  增长值
      * @param integer $lazyTime 延时时间(s)
      * @param string  $op inc/dec
      * @return $this
      */
-    public function inc(string $field, int $step = 1, int $lazyTime = 0, string $op = 'inc')
+    public function inc(string $field, float $step = 1, int $lazyTime = 0, string $op = 'inc')
     {
         if ($lazyTime > 0) {
             // 延迟写入
@@ -241,11 +238,11 @@ class Query extends BaseQuery
      * 字段值减少
      * @access public
      * @param  string  $field 字段名
-     * @param  integer $step  减少值
+     * @param  float   $step  减少值
      * @param  integer $lazyTime 延时时间(s)
      * @return $this
      */
-    public function dec(string $field, int $step = 1, int $lazyTime = 0)
+    public function dec(string $field, float $step = 1, int $lazyTime = 0)
     {
         return $this->inc($field, -1 * $step, $lazyTime);
     }
