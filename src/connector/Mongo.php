@@ -35,8 +35,7 @@ use think\Log;
  */
 class Mongo
 {
-    protected static $instance = [];
-    protected $dbName          = ''; // dbName
+    protected $dbName = ''; // dbName
     /** @var string 当前SQL指令 */
     protected $queryStr = '';
     // 查询数据类型
@@ -44,8 +43,6 @@ class Mongo
     protected $mongo; // MongoDb Object
     protected $cursor; // MongoCursor Object
 
-    // 监听回调
-    protected static $event = [];
     /** @var Manager[] 数据库连接ID 支持多个连接 */
     protected $links = [];
     /** @var Manger 当前连接ID */
@@ -560,10 +557,12 @@ class Mongo
      */
     protected function triggerSql(string $sql, string $runtime, array $options = [], bool $master = false): void
     {
-        if (!empty(self::$event)) {
-            foreach (self::$event as $callback) {
+        $listen = $this->db->getListen();
+
+        if (!empty($listen)) {
+            foreach ($listen as $callback) {
                 if (is_callable($callback)) {
-                    call_user_func_array($callback, [$sql, $runtime, $options, $master]);
+                    $callback($sql, $runtime, $options, $master);
                 }
             }
         } else {
