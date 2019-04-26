@@ -7,7 +7,7 @@
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
 declare (strict_types = 1);
-namespace think\mongo;
+namespace think\db\builder;
 
 use MongoDB\BSON\Javascript;
 use MongoDB\BSON\ObjectID;
@@ -16,9 +16,10 @@ use MongoDB\Driver\BulkWrite;
 use MongoDB\Driver\Command;
 use MongoDB\Driver\Exception\InvalidArgumentException;
 use MongoDB\Driver\Query as MongoQuery;
+use think\db\connector\Mongo as Connection;
 use think\Exception;
 
-class Builder
+class Mongo
 {
     // connection对象实例
     protected $connection;

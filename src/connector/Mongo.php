@@ -7,7 +7,7 @@
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
 declare (strict_types = 1);
-namespace think\mongo;
+namespace think\db\connector;
 
 use MongoDB\BSON\ObjectID;
 use MongoDB\Driver\BulkWrite;
@@ -25,13 +25,15 @@ use MongoDB\Driver\WriteConcern;
 use think\Cache;
 use think\Collection;
 use think\Db;
+use think\db\builder\Mongo as Builder;
+use think\db\Mongo as Query;
 use think\Exception;
 use think\Log;
 
 /**
  * Mongo数据库驱动
  */
-class Connection
+class Mongo
 {
     protected static $instance = [];
     protected $dbName          = ''; // dbName
@@ -107,7 +109,7 @@ class Connection
         // typeMap
         'type_map'        => ['root' => 'array', 'document' => 'array'],
         // Query对象
-        'query'           => '\\think\\mongo\\Query',
+        'query'           => '\\think\\db\\Mongo',
     ];
 
     /**

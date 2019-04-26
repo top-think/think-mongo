@@ -7,7 +7,7 @@
 // | Author: liu21st <liu21st@gmail.com>
 // +----------------------------------------------------------------------
 declare (strict_types = 1);
-namespace think\mongo;
+namespace think\db;
 
 use MongoDB\Driver\BulkWrite;
 use MongoDB\Driver\Command;
@@ -21,10 +21,11 @@ use MongoDB\Driver\Query as MongoQuery;
 use MongoDB\Driver\ReadPreference;
 use MongoDB\Driver\WriteConcern;
 use think\Collection;
+use think\db\connector\Mongo as Connection;
 use think\db\Query as BaseQuery;
 use think\Exception;
 
-class Query extends BaseQuery
+class Mongo extends BaseQuery
 {
     /**
      * 架构函数
