@@ -17,6 +17,7 @@ use MongoDB\Driver\Command;
 use MongoDB\Driver\Exception\InvalidArgumentException;
 use MongoDB\Driver\Query as MongoQuery;
 use think\db\connector\Mongo as Connection;
+use think\db\Mongo as Query;
 use think\Exception;
 
 class Mongo
