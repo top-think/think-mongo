@@ -470,6 +470,10 @@ class Connection
                     $this->queryStr .= '.sort(' . json_encode($options['sort']) . ')';
                 }
 
+                if (isset($options['skip'])) {
+                    $this->queryStr .= '.skip(' . $options['skip'] . ')';
+                }
+
                 if (isset($options['limit'])) {
                     $this->queryStr .= '.limit(' . $options['limit'] . ')';
                 }
