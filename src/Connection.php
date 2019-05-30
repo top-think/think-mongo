@@ -186,7 +186,7 @@ class Connection
             }
 
             if (empty($config['dsn'])) {
-                $config['dsn'] = 'mongodb://' . ($config['username'] ? "{$config['username']}" : '') . ($config['password'] ? ":{$config['password']}@" : '') . $config['hostname'] . ($config['hostport'] ? ":{$config['hostport']}" : '');
+                $config['dsn'] = 'mongodb://' . ($config['username'] ? str_replace(['@', ':'], ['%40', '%3A'], $config['username']) : '') . ($config['password'] ? ":" . str_replace(['@', ':'], ['%40', '%3A'], $config['password']) . "@" : '') . $config['hostname'] . ($config['hostport'] ? ":{$config['hostport']}" : '');
             }
 
             if ($config['debug']) {
@@ -700,7 +700,7 @@ class Connection
      */
     private function buildUrl()
     {
-        $url = 'mongodb://' . ($this->config['username'] ? "{$this->config['username']}" : '') . ($this->config['password'] ? ":{$this->config['password']}@" : '');
+        $url = 'mongodb://' . ($this->config['username'] ? str_replace(['@', ':'], ['%40', '%3A'], $this->config['username']) : '') . ($this->config['password'] ? ":" . str_replace(['@', ':'], ['%40', '%3A'], $this->config['password']) . "@" : '');
 
         $hostList = explode(',', $this->config['hostname']);
         $portList = explode(',', $this->config['hostport']);
