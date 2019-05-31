@@ -27,7 +27,7 @@ class Mongo
     // 最后插入ID
     protected $insertId = [];
     // 查询表达式
-    protected $exp = ['<>' => 'ne', 'neq' => 'ne', '=' => 'eq', '>' => 'gt', '>=' => 'gte', '<' => 'lt', '<=' => 'lte', 'in' => 'in', 'not in' => 'nin', 'nin' => 'nin', 'mod' => 'mod', 'exists' => 'exists', 'null' => 'null', 'notnull' => 'not null', 'not null' => 'not null', 'regex' => 'regex', 'type' => 'type', 'all' => 'all', '> time' => '> time', '< time' => '< time', 'between' => 'between', 'not between' => 'not between', 'between time' => 'between time', 'not between time' => 'not between time', 'notbetween time' => 'not between time', 'like' => 'like', 'near' => 'near', 'size' => 'size'];
+    protected $exp = ['<>' => 'ne', '=' => 'eq', '>' => 'gt', '>=' => 'gte', '<' => 'lt', '<=' => 'lte', 'in' => 'in', 'not in' => 'nin', 'nin' => 'nin', 'mod' => 'mod', 'exists' => 'exists', 'null' => 'null', 'notnull' => 'not null', 'not null' => 'not null', 'regex' => 'regex', 'type' => 'type', 'all' => 'all', '> time' => '> time', '< time' => '< time', 'between' => 'between', 'not between' => 'not between', 'between time' => 'between time', 'not between time' => 'not between time', 'notbetween time' => 'not between time', 'like' => 'like', 'near' => 'near', 'size' => 'size'];
 
     /**
      * 架构函数
@@ -52,10 +52,11 @@ class Mongo
     /**
      * key分析
      * @access protected
+     * @param Query     $query 查询对象
      * @param string $key
      * @return string
      */
-    protected function parseKey($key)
+    protected function parseKey(Query $query, $key)
     {
         if (0 === strpos($key, '__TABLE__.')) {
             list($collection, $key) = explode('.', $key, 2);
@@ -96,7 +97,7 @@ class Mongo
      * @param array $data 数据
      * @return array
      */
-    protected function parseData(Query $query, $data)
+    protected function parseData(Query $query, array $data): array
     {
         if (empty($data)) {
             return [];
@@ -105,7 +106,7 @@ class Mongo
         $result = [];
 
         foreach ($data as $key => $val) {
-            $item = $this->parseKey($key);
+            $item = $this->parseKey($query, $key);
 
             if (is_object($val)) {
                 $result[$item] = $val;
@@ -128,7 +129,7 @@ class Mongo
      * @param array $data 数据
      * @return array
      */
-    protected function parseSet(Query $query, $data)
+    protected function parseSet(Query $query, array $data): array
     {
         if (empty($data)) {
             return [];
@@ -137,7 +138,7 @@ class Mongo
         $result = [];
 
         foreach ($data as $key => $val) {
-            $item = $this->parseKey($key);
+            $item = $this->parseKey($query, $key);
 
             if (is_array($val) && isset($val[0]) && is_string($val[0]) && 0 === strpos($val[0], '$')) {
                 $result[$val[0]][$item] = $this->parseValue($query, $val[1], $key);
@@ -215,7 +216,7 @@ class Mongo
     // where子单元分析
     protected function parseWhereItem(Query $query, $field, $val)
     {
-        $key = $field ? $this->parseKey($field) : '';
+        $key = $field ? $this->parseKey($query, $field) : '';
         // 查询规则和条件
         if (!is_array($val)) {
             $val = ['=', $val];
@@ -330,17 +331,21 @@ class Mongo
     protected function parseDateTime(Query $query, $value, $key)
     {
         // 获取时间字段类型
-        $type = $this->connection->getTableInfo('', 'type');
+        $type = $query->getFieldType($key);
 
-        if (isset($type[$key])) {
-            $value = strtotime($value) ?: $value;
+        if ($type) {
+            if (is_string($value)) {
+                $value = strtotime($value) ?: $value;
+            }
 
-            if (preg_match('/(datetime|timestamp)/is', $type[$key])) {
-                // 日期及时间戳类型
-                $value = date('Y-m-d H:i:s', $value);
-            } elseif (preg_match('/(date)/is', $type[$key])) {
-                // 日期及时间戳类型
-                $value = date('Y-m-d', $value);
+            if (is_int($value)) {
+                if (preg_match('/(datetime|timestamp)/is', $type)) {
+                    // 日期及时间戳类型
+                    $value = date('Y-m-d H:i:s', $value);
+                } elseif (preg_match('/(date)/is', $type)) {
+                    // 日期及时间戳类型
+                    $value = date('Y-m-d', $value);
+                }
             }
         }
 
@@ -361,10 +366,9 @@ class Mongo
      * 生成insert BulkWrite对象
      * @access public
      * @param Query     $query 查询对象
-     * @param array     $data 数据
      * @return BulkWrite
      */
-    public function insert(Query $query, $replace = false)
+    public function insert(Query $query)
     {
         // 分析并处理数据
         $options = $query->getOptions();
@@ -389,7 +393,7 @@ class Mongo
      * @param array     $dataSet 数据集
      * @return BulkWrite
      */
-    public function insertAll(Query $query, $dataSet)
+    public function insertAll(Query $query, array $dataSet)
     {
         $bulk    = new BulkWrite;
         $options = $query->getOptions();
