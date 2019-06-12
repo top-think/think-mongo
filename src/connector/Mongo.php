@@ -221,9 +221,7 @@ class Mongo
                 $config['dsn'] = 'mongodb://' . ($config['username'] ? "{$config['username']}" : '') . ($config['password'] ? ":{$config['password']}@" : '') . $config['hostname'] . ($config['hostport'] ? ":{$config['hostport']}" : '');
             }
 
-            if ($config['debug']) {
-                $startTime = microtime(true);
-            }
+            $startTime = microtime(true);
 
             $this->links[$linkNum] = new Manager($config['dsn'], $config['params']);
 
@@ -710,13 +708,10 @@ class Mongo
         $this->dbName  = $this->config['database'];
         $this->typeMap = $this->config['type_map'];
 
-        if ($this->config['debug']) {
-            $startTime = microtime(true);
-        }
-
         $this->config['params']['replicaSet'] = $this->config['database'];
 
-        $manager = new Manager($this->buildUrl(), $this->config['params']);
+        $startTime = microtime(true);
+        $manager   = new Manager($this->buildUrl(), $this->config['params']);
 
         // 记录数据库连接信息
         $this->logger('[ MongoDB ] ReplicaSet CONNECT:[ UseTime:' . number_format(microtime(true) - $startTime, 6) . 's ] ' . $this->config['dsn']);
