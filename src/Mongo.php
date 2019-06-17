@@ -21,6 +21,7 @@ use MongoDB\Driver\Query as MongoQuery;
 use MongoDB\Driver\ReadPreference;
 use MongoDB\Driver\WriteConcern;
 use think\Collection;
+use think\db\Connection as BaseConnection;
 use think\db\connector\Mongo as Connection;
 use think\db\Query as BaseQuery;
 use think\Exception;
@@ -42,9 +43,9 @@ class Mongo extends BaseQuery
     /**
      * 获取当前的数据库Connection对象
      * @access public
-     * @return Connection
+     * @return BaseConnection
      */
-    public function getConnection()
+    public function getConnection(): BaseConnection
     {
         return $this->connection;
     }
