@@ -880,7 +880,7 @@ class Mongo extends Connection
                 return $this->builder->select($query, true);
             });
 
-            $result = $resultSet[0] ?? null;
+            $result = $resultSet[0] ?? [];
         }
 
         return $result;
