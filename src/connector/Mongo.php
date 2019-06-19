@@ -22,11 +22,10 @@ use MongoDB\Driver\Exception\RuntimeException;
 use MongoDB\Driver\Manager;
 use MongoDB\Driver\Query as MongoQuery;
 use MongoDB\Driver\ReadPreference;
-use MongoDB\Driver\WriteConcern;
 use think\Collection;
+use think\db\BaseQuery;
 use think\db\builder\Mongo as Builder;
 use think\db\Connection;
-use think\db\Query;
 use think\Exception;
 
 /**
@@ -177,10 +176,10 @@ class Mongo extends Connection
     /**
      * 执行查询但只返回Cursor对象
      * @access public
-     * @param  Query $query 查询对象
+     * @param  BaseQuery $query 查询对象
      * @return Cursor
      */
-    public function cursor(Query $query)
+    public function cursor(BaseQuery $query)
     {
         $query->parseOptions();
         // 生成MongoQuery对象
@@ -202,7 +201,7 @@ class Mongo extends Connection
      * @throws ConnectionException
      * @throws RuntimeException
      */
-    public function getCursor(Query $query, $mongoQuery)
+    public function getCursor(BaseQuery $query, $mongoQuery)
     {
         $this->initConnect(false);
         $this->db->updateQueryTimes();
@@ -236,7 +235,7 @@ class Mongo extends Connection
     /**
      * 执行查询
      * @access public
-     * @param  Query              $query 查询对象
+     * @param  BaseQuery          $query 查询对象
      * @param  MongoQuery|Closure $mongoQuery Mongo查询对象
      * @return array
      * @throws AuthenticationException
@@ -244,7 +243,7 @@ class Mongo extends Connection
      * @throws ConnectionException
      * @throws RuntimeException
      */
-    public function mongoQuery(Query $query, $mongoQuery): array
+    public function mongoQuery(BaseQuery $query, $mongoQuery): array
     {
         $options = $query->parseOptions();
 
@@ -278,9 +277,8 @@ class Mongo extends Connection
     /**
      * 执行写操作
      * @access public
-     * @param string        $namespace
-     * @param BulkWrite     $bulk
-     * @param WriteConcern  $writeConcern
+     * @param BaseQuery    $query
+     * @param BulkWrite    $bulk
      *
      * @return WriteResult
      * @throws AuthenticationException
@@ -289,7 +287,7 @@ class Mongo extends Connection
      * @throws RuntimeException
      * @throws BulkWriteException
      */
-    public function mongoExecute(Query $query, BulkWrite $bulk)
+    public function mongoExecute(BaseQuery $query, BulkWrite $bulk)
     {
         $this->initConnect(true);
         $this->db->updateQueryTimes();
@@ -675,7 +673,7 @@ class Mongo extends Connection
     /**
      * 插入记录
      * @access public
-     * @param  Query     $query 查询对象
+     * @param  BaseQuery $query 查询对象
      * @param  boolean   $getLastInsID 返回自增主键
      * @return WriteResult
      * @throws AuthenticationException
@@ -684,7 +682,7 @@ class Mongo extends Connection
      * @throws RuntimeException
      * @throws BulkWriteException
      */
-    public function insert(Query $query, bool $getLastInsID = false)
+    public function insert(BaseQuery $query, bool $getLastInsID = false)
     {
         // 分析查询表达式
         $options = $query->parseOptions();
@@ -723,9 +721,11 @@ class Mongo extends Connection
     /**
      * 获取最近插入的ID
      * @access public
+     * @param  BaseQuery $query 查询对象
+     * @param  string    $sequence 序列名
      * @return mixed
      */
-    public function getLastInsID(Query $query, string $sequence = null)
+    public function getLastInsID(BaseQuery $query, string $sequence = null)
     {
         $id = $this->builder->getLastInsID();
 
@@ -745,8 +745,8 @@ class Mongo extends Connection
     /**
      * 批量插入记录
      * @access public
-     * @param  Query $query 查询对象
-     * @param  array $dataSet 数据集
+     * @param  BaseQuery $query 查询对象
+     * @param  array     $dataSet 数据集
      * @return integer
      * @throws AuthenticationException
      * @throws InvalidArgumentException
@@ -754,7 +754,7 @@ class Mongo extends Connection
      * @throws RuntimeException
      * @throws BulkWriteException
      */
-    public function insertAll(Query $query, array $dataSet = []): int
+    public function insertAll(BaseQuery $query, array $dataSet = []): int
     {
         // 分析查询表达式
         $query->parseOptions();
@@ -774,7 +774,7 @@ class Mongo extends Connection
     /**
      * 更新记录
      * @access public
-     * @param  Query     $query 查询对象
+     * @param  BaseQuery $query 查询对象
      * @return int
      * @throws Exception
      * @throws AuthenticationException
@@ -783,7 +783,7 @@ class Mongo extends Connection
      * @throws RuntimeException
      * @throws BulkWriteException
      */
-    public function update(Query $query): int
+    public function update(BaseQuery $query): int
     {
         $query->parseOptions();
 
@@ -804,7 +804,7 @@ class Mongo extends Connection
     /**
      * 删除记录
      * @access public
-     * @param  Query     $query 查询对象
+     * @param  BaseQuery $query 查询对象
      * @return int
      * @throws Exception
      * @throws AuthenticationException
@@ -813,7 +813,7 @@ class Mongo extends Connection
      * @throws RuntimeException
      * @throws BulkWriteException
      */
-    public function delete(Query $query): int
+    public function delete(BaseQuery $query): int
     {
         // 分析查询表达式
         $query->parseOptions();
@@ -836,7 +836,7 @@ class Mongo extends Connection
     /**
      * 查找记录
      * @access public
-     * @param  Query $query 查询对象
+     * @param  BaseQuery $query 查询对象
      * @return array
      * @throws ModelNotFoundException
      * @throws DataNotFoundException
@@ -845,7 +845,7 @@ class Mongo extends Connection
      * @throws ConnectionException
      * @throws RuntimeException
      */
-    public function select(Query $query): array
+    public function select(BaseQuery $query): array
     {
         $resultSet = $this->db->trigger('before_select', $query);
 
@@ -861,7 +861,7 @@ class Mongo extends Connection
     /**
      * 查找单条记录
      * @access public
-     * @param  Query $query 查询对象
+     * @param  BaseQuery $query 查询对象
      * @return array
      * @throws ModelNotFoundException
      * @throws DataNotFoundException
@@ -870,7 +870,7 @@ class Mongo extends Connection
      * @throws ConnectionException
      * @throws RuntimeException
      */
-    public function find(Query $query): array
+    public function find(BaseQuery $query): array
     {
         // 事件回调
         $result = $this->db->trigger('before_find', $query);
@@ -890,11 +890,12 @@ class Mongo extends Connection
     /**
      * 得到某个字段的值
      * @access public
-     * @param  string $field 字段名
-     * @param  mixed  $default 默认值
+     * @param  BaseQuery $query 查询对象
+     * @param  string    $field 字段名
+     * @param  mixed     $default 默认值
      * @return mixed
      */
-    public function value(Query $query, string $field, $default = null)
+    public function value(BaseQuery $query, string $field, $default = null)
     {
         $options = $query->parseOptions();
 
@@ -945,11 +946,12 @@ class Mongo extends Connection
     /**
      * 得到某个列的数组
      * @access public
-     * @param  string $field 字段名 多个字段用逗号分隔
-     * @param  string $key 索引
+     * @param  BaseQuery $query 查询对象
+     * @param  string    $field 字段名 多个字段用逗号分隔
+     * @param  string    $key 索引
      * @return array
      */
-    public function column(Query $query, string $field, string $key = ''): array
+    public function column(BaseQuery $query, string $field, string $key = ''): array
     {
         $options = $query->parseOptions();
 
@@ -1007,13 +1009,13 @@ class Mongo extends Connection
     /**
      * 执行command
      * @access public
-     * @param  Query               $query      查询对象
+     * @param  BaseQuery           $query      查询对象
      * @param  string|array|object $command 指令
      * @param  mixed               $extra 额外参数
      * @param  string              $db 数据库名
      * @return array
      */
-    public function cmd(Query $query, $command, $extra = null, string $db = ''): array
+    public function cmd(BaseQuery $query, $command, $extra = null, string $db = ''): array
     {
         if (is_array($command) || is_object($command)) {
             if ($this->getConfig('debug')) {
