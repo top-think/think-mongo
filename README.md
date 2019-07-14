@@ -1,6 +1,8 @@
 ThinkPHP 6.0 MongoDb驱动
 ===============
 
+请使用最新版本的topthink/think-orm 本仓库不再维护更新
+
 首先安装官方的mongodb扩展：
 
 http://pecl.php.net/package/mongodb
