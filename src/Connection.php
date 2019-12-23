@@ -47,6 +47,18 @@ class Connection
     protected $linkID;
     protected $linkRead;
     protected $linkWrite;
+    
+    /**
+     * sessions key
+     * @var string
+     * @author klinson <klinson@163.com>
+     */
+    protected $session_uuid;
+    /**
+     * @var array \MongoDB\Driver\Session
+     * @author klinson <klinson@163.com>
+     */
+    protected $sessions = [];
 
     // 返回或者影响记录数
     protected $numRows = 0;
@@ -281,7 +293,14 @@ class Connection
             $this->queryStr = 'db' . strstr($namespace, '.') . '.' . $this->queryStr;
         }
         $this->debug(true);
-        $this->cursor = $this->mongo->executeQuery($namespace, $query, $readPreference);
+        if ($session = $this->getSession()) {
+            $this->cursor = $this->mongo->executeQuery($namespace, $query, [
+                'readPreference' => is_null($readPreference) ? new ReadPreference(ReadPreference::RP_PRIMARY) : $readPreference,
+                'session' => $session
+            ]);
+        } else {
+            $this->cursor = $this->mongo->executeQuery($namespace, $query, $readPreference);
+        }
         $this->debug(false);
         return $this->getResult($class, $typeMap);
     }
@@ -310,7 +329,14 @@ class Connection
         if ($this->config['debug'] && !empty($this->queryStr)) {
             $this->queryStr = 'db.' . $this->queryStr;
         }
-        $this->cursor = $this->mongo->executeCommand($dbName, $command, $readPreference);
+        if ($session = $this->getSession()) {
+            $this->cursor = $this->mongo->executeCommand($dbName, $command, [
+                'readPreference' => is_null($readPreference) ? new ReadPreference(ReadPreference::RP_PRIMARY) : $readPreference,
+                'session' => $session
+            ]);
+        } else {
+            $this->cursor = $this->mongo->executeCommand($dbName, $command, $readPreference);
+        }
         $this->debug(false);
         return $this->getResult($class, $typeMap);
 
@@ -388,7 +414,14 @@ class Connection
             $this->queryStr = 'db' . strstr($namespace, '.') . '.' . $this->queryStr;
         }
         $this->debug(true);
-        $writeResult = $this->mongo->executeBulkWrite($namespace, $bulk, $writeConcern);
+        if ($session = $this->getSession()) {
+            $writeResult = $this->mongo->executeBulkWrite($namespace, $bulk, [
+                'session' => $session,
+                'writeConcern' => is_null($writeConcern) ? new WriteConcern(1) : $writeConcern
+            ]);
+        } else {
+            $writeResult = $this->mongo->executeBulkWrite($namespace, $bulk, $writeConcern);
+        }
         $this->debug(false);
         $this->numRows = $writeResult->getMatchedCount();
         return $writeResult;
@@ -641,32 +674,109 @@ class Connection
     }
 
     /**
+     * 执行数据库事务
+     * @access public
+     * @param callable $callback 数据操作方法回调
+     * @return mixed
+     * @throws \PDOException
+     * @throws \Exception
+     * @throws \Throwable
+     * @author klinson <klinson@163.com>
+     */
+    public function transaction($callback)
+    {
+        $this->startTrans();
+        try {
+            $result = null;
+            if (is_callable($callback)) {
+                $result = call_user_func_array($callback, [$this]);
+            }
+            $this->commit();
+            return $result;
+        } catch (\Exception $e) {
+            $this->rollback();
+            throw $e;
+        } catch (\Throwable $e) {
+            $this->rollback();
+            throw $e;
+        }
+    }
+
+
+    /**
      * 启动事务
      * @access public
      * @return void
      * @throws \PDOException
      * @throws \Exception
+     * @author klinson <klinson@163.com>
      */
     public function startTrans()
-    {}
+    {
+        $this->initConnect(true);
+        $this->session_uuid = uniqid();
+        $this->sessions[$this->session_uuid] = $this->getMongo()->startSession();
+
+        $this->sessions[$this->session_uuid]->startTransaction([]);
+    }
 
     /**
      * 用于非自动提交状态下面的查询提交
      * @access public
      * @return void
-     * @throws PDOException
+     * @throws \PDOException
+     * @author klinson <klinson@163.com>
      */
     public function commit()
-    {}
+    {
+        if ($session = $this->getSession()) {
+            $session->commitTransaction();
+            $this->setLastSession();
+        }
+    }
 
     /**
      * 事务回滚
      * @access public
      * @return void
-     * @throws PDOException
+     * @throws \PDOException
+     * @author klinson <klinson@163.com>
      */
     public function rollback()
-    {}
+    {
+        if ($session = $this->getSession()) {
+            $session->abortTransaction();
+            $this->setLastSession();
+        }
+    }
+
+    /**
+     * 结束当前会话,设置上一个会话为当前会话
+     * @author klinson <klinson@163.com>
+     */
+    protected function setLastSession()
+    {
+        if ($session = $this->getSession()) {
+            $session->endSession();
+            unset($this->sessions[$this->session_uuid]);
+            if (empty($this->sessions)) {
+                $this->session_uuid = null;
+            } else {
+                end($this->sessions);
+                $this->session_uuid = key($this->sessions);
+            }
+        }
+    }
+    
+    /**
+     * 获取当前会话
+     * @return \MongoDB\Driver\Session|null
+     * @author klinson <klinson@163.com>
+     */
+    public function getSession()
+    {
+        return isset($this->sessions[$this->session_uuid]) ? $this->sessions[$this->session_uuid] : null;
+    }
 
     /**
      * 析构方法
