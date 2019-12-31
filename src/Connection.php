@@ -702,7 +702,6 @@ class Connection
         }
     }
 
-
     /**
      * 启动事务
      * @access public
