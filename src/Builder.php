@@ -205,7 +205,7 @@ class Builder
             list($field, $condition) = $options['soft_delete'];
             $filter['$and'][]        = $this->parseWhereItem($query, $field, $condition);
         }
-        if (empty($filter)) { // 返回空对象
+        if (empty($filter)) {
             return new \stdClass();
         }
         return $filter;
