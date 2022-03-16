@@ -1,11 +1,11 @@
 {
-    "name": "topthink/think-mongo",
+    "name": "hui-ho/think-mongo",
     "description": "mongodb driver for thinkphp5",
     "license": "Apache-2.0",
     "authors": [
         {
-            "name": "liu21st",
-            "email": "liu21st@gmail.com"
+            "name": "hui-ho",
+            "email": "hui-ho@outlook.com"
         }
     ],
     "require": {
