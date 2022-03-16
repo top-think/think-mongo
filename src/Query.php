@@ -183,6 +183,11 @@ class Query extends BaseQuery
 
         $result = $this->cmd('aggregate', [strtolower($aggregate), $field]);
 
+        // 优化有分组时，原样输出
+        if (isset($this->options['group']) && $this->options['group']) {
+            return $result;
+        }
+
         $value = isset($result[0]['aggregate']) ? $result[0]['aggregate'] : 0;
 
         if ($force) {
