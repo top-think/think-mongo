@@ -183,6 +183,11 @@ class Query extends BaseQuery
 
         $result = $this->cmd('aggregate', [strtolower($aggregate), $field]);
 
+        // 优化有分组时，原样输出
+        if (isset($this->options['group']) && $this->options['group']) {
+            return $result;
+        }
+
         $value = isset($result[0]['aggregate']) ? $result[0]['aggregate'] : 0;
 
         if ($force) {
@@ -508,7 +513,9 @@ class Query extends BaseQuery
      */
     public function field($field, $except = false, $tableName = '', $prefix = '', $alias = '')
     {
-        if (is_string($field)) {
+        if (empty($field)) {
+            return $this;
+        } elseif (is_string($field)) {
             $field = array_map('trim', explode(',', $field));
         }
 
@@ -582,6 +589,10 @@ class Query extends BaseQuery
      */
     public function order($field, $order = '')
     {
+        if (empty($field)) {
+            return $this;
+        }
+
         if (is_array($field)) {
             $this->options['sort'] = $field;
         } else {
