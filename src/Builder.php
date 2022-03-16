@@ -109,8 +109,8 @@ class Builder
                 $result[$item] = $val;
             } elseif (isset($val[0]) && 'exp' === $val[0]) {
                 $result[$item] = $val[1];
-            } elseif (is_null($val)) {
-                $result[$item] = 'NULL';
+//            } elseif (is_null($val)) {
+//                $result[$item] = 'NULL';
             } else {
                 $result[$item] = $this->parseValue($query, $val, $key);
             }
@@ -150,9 +150,12 @@ class Builder
     /**
      * 生成查询过滤条件
      * @access public
-     * @param Query $query 查询对象
-     * @param mixed $where
-     * @return array
+     *
+     * @param \think\mongo\Query $query 查询对象
+     * @param                    $where
+     *
+     * @return array|\stdClass
+     * @throws \think\Exception
      */
     public function parseWhere(Query $query, $where)
     {
@@ -204,6 +207,9 @@ class Builder
             // 附加软删除条件
             list($field, $condition) = $options['soft_delete'];
             $filter['$and'][]        = $this->parseWhereItem($query, $field, $condition);
+        }
+        if (empty($filter)) {
+            return new \stdClass();
         }
 
         return $filter;
@@ -521,12 +527,19 @@ class Builder
         if ('id' == $field && $this->connection->getConfig('pk_convert_id')) {
             $field = '_id';
         }
-
-        $group = isset($options['group']) ? '$' . $options['group'] : null;
+        // 可多维分组（已优化，只作标记）
+        $group = null;
+        if (isset($options['group'])) {
+            if (is_array($options['group'])) {
+                $group = $options['group'];
+            } else {
+                $group = '$' . $options['group'];
+            }
+        }
 
         $pipeline = [
             ['$match' => (object) $this->parseWhere($query, $options['where'])],
-            ['$group' => ['_id' => $group, 'aggregate' => ['$' . $fun => '$' . $field]]],
+            ['$group' => ['_id' => $group, 'aggregate' => ['$' . $fun => $this->parseAggregateField($field)]]],
         ];
 
         $cmd = [
@@ -569,7 +582,7 @@ class Builder
         }
 
         foreach ($aggregate as $fun => $field) {
-            $groups[$field . '_' . $fun] = ['$' . $fun => '$' . $field];
+            $groups[$field . '_' . $fun] = ['$' . $fun => $this->parseAggregateField($field)];
         }
 
         $pipeline = [
@@ -666,4 +679,10 @@ class Builder
             $this->connection->log($type, $data, $options);
         }
     }
+
+    private function parseAggregateField($field)
+    {
+        return is_numeric($field) ? $field : '$' . $field;
+    }
+
 }
