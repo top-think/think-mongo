@@ -682,8 +682,6 @@ class Connection
             $startTime = microtime(true);
         }
 
-        $this->config['params']['replicaSet'] = $this->config['database'];
-
         $manager = new Manager($this->buildUrl(), $this->config['params']);
 
         if ($this->config['debug']) {
